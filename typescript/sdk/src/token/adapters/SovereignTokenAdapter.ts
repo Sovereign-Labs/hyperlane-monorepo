@@ -198,7 +198,7 @@ export class SovereignTokenAdapter
 
   private async bank(): Promise<Bank> {
     const provider = await this.getProvider();
-    return new Bank(provider);
+    return new Bank(provider as any);
   }
 }
 
@@ -267,4 +267,3 @@ export class SovereignHypTokenAdapter
     throw new Error('Not implemented');
   }
 }
-
