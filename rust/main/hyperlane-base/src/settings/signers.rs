@@ -281,14 +281,9 @@ impl BuildableWithSignerConf for hyperlane_sovereign::Signer {
     }
 }
 
-/// We cannot determine if we should use ethereum or ed25519 crypto
-/// impl at this level, so we choose to use an ethereum one, because
-/// it is the one used in sov-rollup-starter
-///
-/// see [`hyperlane_sovereign::signers`] for more info
 impl ChainSigner for hyperlane_sovereign::Signer {
     fn address_string(&self) -> String {
-        self.address().expect("ethereum address cannot fail")
+        self.address().expect("address calculation cannot fail")
     }
     fn address_h256(&self) -> H256 {
         self.h256_address()
