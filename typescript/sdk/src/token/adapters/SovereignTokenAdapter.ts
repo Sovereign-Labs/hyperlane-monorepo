@@ -184,7 +184,7 @@ export class SovereignTokenAdapter
           },
         },
       },
-      generation: Date.now(),
+      uniqueness: { generation: Date.now() },
       details: provider.context.defaultTxDetails,
     };
   }
