@@ -50,6 +50,17 @@ pub enum SignerConf {
         /// Whether the Starknet signer is legacy
         is_legacy: bool,
     },
+    /// Sovereign Specific key
+    SovereignKey {
+        /// Private key value
+        key: H256,
+        /// The flavour of account used by the Sovereign rollup
+        /// Valid values: "solana" | "ethereum" | "sovereign"
+        /// This is a temp setting, we can retrieve this value from the rollup itself.
+        account_type: String,
+        /// If the address encoding is bech then this should be the HRP to use.
+        hrp: Option<String>,
+    },
     /// Assume node will sign on RPC calls
     #[default]
     Node,
@@ -104,6 +115,9 @@ impl BuildableWithSignerConf for hyperlane_ethereum::Signers {
             }
             SignerConf::StarkKey { .. } => {
                 bail!("starkKey signer is not supported by Ethereum")
+            }
+            SignerConf::SovereignKey { .. } => {
+                bail!("sovereignKey signer is not supported by Ethereum")
             }
             SignerConf::Node => bail!("Node signer"),
         })
@@ -250,8 +264,17 @@ impl ChainSigner for hyperlane_cosmos_native::Signer {
 #[async_trait]
 impl BuildableWithSignerConf for hyperlane_sovereign::Signer {
     async fn build(conf: &SignerConf) -> Result<Self, Report> {
-        if let SignerConf::HexKey { key } = conf {
-            Ok(hyperlane_sovereign::Signer::new(key)?)
+        if let SignerConf::SovereignKey {
+            key,
+            account_type,
+            hrp,
+        } = conf
+        {
+            Ok(hyperlane_sovereign::Signer::new(
+                key,
+                account_type,
+                hrp.clone(),
+            )?)
         } else {
             bail!("{conf:?} key is not supported by Sovereign");
         }
@@ -265,12 +288,10 @@ impl BuildableWithSignerConf for hyperlane_sovereign::Signer {
 /// see [`hyperlane_sovereign::signers`] for more info
 impl ChainSigner for hyperlane_sovereign::Signer {
     fn address_string(&self) -> String {
-        self.ethereum()
-            .address()
-            .expect("ethereum address cannot fail")
+        self.address().expect("ethereum address cannot fail")
     }
     fn address_h256(&self) -> H256 {
-        self.ethereum().h256_address()
+        self.h256_address()
     }
 }
 

@@ -8,7 +8,7 @@ use hyperlane_operation_verifier::{
 };
 use hyperlane_warp_route::TokenMessage;
 
-use crate::signers::ed25519::SOV_HEX_ADDRESS_LEADING_ZEROS;
+use crate::signers::sovereign::SOV_HEX_ADDRESS_LEADING_ZEROS;
 
 const WARP_ROUTE_MARKER: &str = "/";
 

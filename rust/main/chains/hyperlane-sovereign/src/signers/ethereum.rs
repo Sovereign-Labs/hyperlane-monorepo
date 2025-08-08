@@ -37,7 +37,7 @@ impl Signer {
 }
 
 impl Crypto for Signer {
-    fn sign(&self, bytes: impl AsRef<[u8]>) -> ChainResult<Vec<u8>> {
+    fn sign(&self, bytes: &[u8]) -> ChainResult<Vec<u8>> {
         let digest = Keccak256::new_with_prefix(bytes.as_ref());
 
         self.0

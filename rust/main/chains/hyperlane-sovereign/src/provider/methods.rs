@@ -12,7 +12,6 @@ use serde::Deserialize;
 use serde_json::json;
 
 use super::client::SovereignClient;
-use crate::provider::client::RestClientError;
 use crate::types::{Batch, Slot, Tx};
 use crate::Crypto;
 
@@ -199,17 +198,8 @@ impl SovereignClient {
             })
         };
 
-        let ed25519_request = request_json(self.signer.ed25519().public_key());
-        let response = match self.http_post::<Data>(query, &ed25519_request).await {
-            Err(error @ RestClientError::Response(..))
-                if error.to_string().contains("Invalid public key size") =>
-            {
-                let eth_request = request_json(self.signer.ethereum().public_key());
-                self.http_post::<Data>(query, &eth_request).await?
-            }
-
-            res => res?,
-        };
+        let request = request_json(self.signer.public_key());
+        let response = self.http_post::<Data>(query, &request).await?;
 
         let receipt = response.apply_tx_result.receipt;
         if receipt.receipt.outcome != "successful" {
