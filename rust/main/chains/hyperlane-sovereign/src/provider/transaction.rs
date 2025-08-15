@@ -89,7 +89,6 @@ impl SovereignClient {
     }
 
     async fn sign_tx(&self, mut utx_json: Value, signer: &impl Crypto) -> ChainResult<Value> {
-        tracing::info!(?utx_json, "Signing transaction");
         let utx_index = self
             .schema
             .rollup_expected_index(RollupRoots::UnsignedTransaction)
@@ -122,7 +121,7 @@ impl SovereignClient {
                 }),
             );
         }
-        tracing::debug!(?utx_json, "Signed tx");
+        tracing::trace!(?utx_json, "Signed tx");
         Ok(utx_json)
     }
 
@@ -132,7 +131,7 @@ impl SovereignClient {
                 "V0": tx_json
             }
         });
-        tracing::info!(?tx_json, "Serializing transaction");
+        tracing::trace!(?tx_json, "Serializing transaction");
         let tx_index = self
             .schema
             .rollup_expected_index(RollupRoots::Transaction)
@@ -200,7 +199,7 @@ impl SovereignClient {
                     }
                     // All other kinds of messages are ignored because
                     // `tokio-tungstenite` ought to handle all
-                    // meta-communication messages (ping, pong, clonse) for us anyway.
+                    // meta-communication messages (ping, pong, close) for us anyway.
                     Ok(_) => None,
                     // Errors are not handled here but passed to the caller.
                     Err(err) => Some(Err(custom_err!("{err}"))),
