@@ -34,6 +34,15 @@ import {
   useSolanaWatchAsset,
 } from './solana.js';
 import {
+  useSovereignAccount,
+  useSovereignActiveChain,
+  useSovereignConnectFn,
+  useSovereignDisconnectFn,
+  useSovereignTransactionFns,
+  useSovereignWalletDetails,
+  useSovereignWatchAsset,
+} from './sovereign.js';
+import {
   useStarknetAccount,
   useStarknetActiveChain,
   useStarknetConnectFn,
@@ -65,6 +74,7 @@ export function useAccounts(
   const solAccountInfo = useSolanaAccount(multiProvider);
   const cosmAccountInfo = useCosmosAccount(multiProvider);
   const starknetAccountInfo = useStarknetAccount(multiProvider);
+  const sovereignAccountInfo = useSovereignAccount(multiProvider);
   // Filtered ready accounts
   const readyAccounts = useMemo(
     () =>
@@ -95,6 +105,7 @@ export function useAccounts(
         [ProtocolType.CosmosNative]: cosmAccountInfo,
         [ProtocolType.Starknet]: starknetAccountInfo,
         [ProtocolType.Radix]: evmAccountInfo, // TODO: implement this once we have a radix wallet connection
+        [ProtocolType.Sovereign]: sovereignAccountInfo,
       },
       readyAccounts,
     }),
@@ -103,6 +114,7 @@ export function useAccounts(
       solAccountInfo,
       cosmAccountInfo,
       starknetAccountInfo,
+      sovereignAccountInfo,
       readyAccounts,
     ],
   );
@@ -196,6 +208,7 @@ export function useWalletDetails(): Record<ProtocolType, WalletDetails> {
   const solWallet = useSolanaWalletDetails();
   const cosmosWallet = useCosmosWalletDetails();
   const starknetWallet = useStarknetWalletDetails();
+  const sovereignWallet = useSovereignWalletDetails();
 
   return useMemo(
     () => ({
@@ -205,8 +218,9 @@ export function useWalletDetails(): Record<ProtocolType, WalletDetails> {
       [ProtocolType.CosmosNative]: cosmosWallet,
       [ProtocolType.Starknet]: starknetWallet,
       [ProtocolType.Radix]: evmWallet, // TODO: implement this once we have a radix wallet connection
+      [ProtocolType.Sovereign]: sovereignWallet,
     }),
-    [evmWallet, solWallet, cosmosWallet, starknetWallet],
+    [evmWallet, solWallet, cosmosWallet, starknetWallet, sovereignWallet],
   );
 }
 
@@ -215,6 +229,7 @@ export function useConnectFns(): Record<ProtocolType, () => void> {
   const onConnectSolana = useSolanaConnectFn();
   const onConnectCosmos = useCosmosConnectFn();
   const onConnectStarknet = useStarknetConnectFn();
+  const onConnectSovereign = useSovereignConnectFn();
 
   return useMemo(
     () => ({
@@ -224,8 +239,15 @@ export function useConnectFns(): Record<ProtocolType, () => void> {
       [ProtocolType.CosmosNative]: onConnectCosmos,
       [ProtocolType.Starknet]: onConnectStarknet,
       [ProtocolType.Radix]: () => {}, // TODO: implement this once we have a radix wallet connection
+      [ProtocolType.Sovereign]: onConnectSovereign,
     }),
-    [onConnectEthereum, onConnectSolana, onConnectCosmos, onConnectStarknet],
+    [
+      onConnectEthereum,
+      onConnectSolana,
+      onConnectCosmos,
+      onConnectStarknet,
+      onConnectSovereign,
+    ],
   );
 }
 
@@ -234,6 +256,7 @@ export function useDisconnectFns(): Record<ProtocolType, () => Promise<void>> {
   const disconnectSol = useSolanaDisconnectFn();
   const disconnectCosmos = useCosmosDisconnectFn();
   const disconnectStarknet = useStarknetDisconnectFn();
+  const disconnectSovereign = useSovereignDisconnectFn();
 
   const onClickDisconnect =
     (env: ProtocolType, disconnectFn?: () => Promise<void> | void) =>
@@ -269,8 +292,18 @@ export function useDisconnectFns(): Record<ProtocolType, () => Promise<void>> {
         disconnectStarknet,
       ),
       [ProtocolType.Radix]: onClickDisconnect(ProtocolType.Radix, () => {}), // TODO: implement once we have radix wallet connection
+      [ProtocolType.Sovereign]: onClickDisconnect(
+        ProtocolType.Sovereign,
+        disconnectSovereign,
+       ),
     }),
-    [disconnectEvm, disconnectSol, disconnectCosmos, disconnectStarknet],
+    [
+        disconnectEvm,
+        disconnectSol,
+        disconnectCosmos,
+        disconnectStarknet,
+        disconnectSovereign,
+    ],
   );
 }
 
@@ -282,13 +315,14 @@ export function useActiveChains(multiProvider: MultiProtocolProvider): {
   const solChain = useSolanaActiveChain(multiProvider);
   const cosmChain = useCosmosActiveChain(multiProvider);
   const starknetChain = useStarknetActiveChain(multiProvider);
+  const sovereignChain = useSovereignActiveChain(multiProvider);
 
   const readyChains = useMemo(
     () =>
-      [evmChain, solChain, cosmChain, starknetChain].filter(
+      [evmChain, solChain, cosmChain, starknetChain, sovereignChain].filter(
         (c) => !!c.chainDisplayName,
       ),
-    [evmChain, solChain, cosmChain, starknetChain],
+    [evmChain, solChain, cosmChain, starknetChain, sovereignChain],
   );
 
   return useMemo(
@@ -300,10 +334,11 @@ export function useActiveChains(multiProvider: MultiProtocolProvider): {
         [ProtocolType.CosmosNative]: cosmChain,
         [ProtocolType.Starknet]: starknetChain,
         [ProtocolType.Radix]: evmChain, // TODO: replace this once we have a radix implementation
+        [ProtocolType.Sovereign]: sovereignChain,
       },
       readyChains,
     }),
-    [evmChain, solChain, cosmChain, readyChains, starknetChain],
+    [evmChain, solChain, cosmChain, readyChains, starknetChain, sovereignChain],
   );
 }
 
@@ -330,6 +365,11 @@ export function useTransactionFns(
     sendTransaction: onSendStarknetTx,
     sendMultiTransaction: onSendMultiStarknetTx,
   } = useStarknetTransactionFns(multiProvider);
+  const {
+    switchNetwork: onSwitchSovereignNetwork,
+    sendTransaction: onSendSovereignTx,
+    sendMultiTransaction: onSendMultiSovereignTx,
+  } = useSovereignTransactionFns(multiProvider);
 
   return useMemo(
     () => ({
@@ -364,6 +404,11 @@ export function useTransactionFns(
         sendMultiTransaction: (): any => {},
         switchNetwork: (): any => {},
       },
+      [ProtocolType.Sovereign]: {
+        sendTransaction: onSendSovereignTx,
+        sendMultiTransaction: onSendMultiSovereignTx,
+        switchNetwork: onSwitchSovereignNetwork,
+      },
     }),
     [
       onSendEvmTx,
@@ -374,6 +419,8 @@ export function useTransactionFns(
       onSwitchCosmNetwork,
       onSendStarknetTx,
       onSwitchStarknetNetwork,
+      onSendSovereignTx,
+      onSwitchSovereignNetwork,
     ],
   );
 }
@@ -385,6 +432,7 @@ export function useWatchAsset(
   const { addAsset: solanaAddAsset } = useSolanaWatchAsset(multiProvider);
   const { addAsset: cosmosAddAsset } = useCosmosWatchAsset(multiProvider);
   const { addAsset: starknetAddAsset } = useStarknetWatchAsset(multiProvider);
+  const { addAsset: sovereignAddAsset } = useSovereignWatchAsset(multiProvider);
 
   return useMemo(
     () => ({
@@ -406,7 +454,16 @@ export function useWatchAsset(
       [ProtocolType.Radix]: {
         addAsset: (): any => {}, // TODO: implement once we have radix wallet connection
       },
+      [ProtocolType.Sovereign]: {
+        addAsset: sovereignAddAsset,
+      },
     }),
-    [evmAddAsset, solanaAddAsset, cosmosAddAsset, starknetAddAsset],
+    [
+      evmAddAsset,
+      solanaAddAsset,
+      cosmosAddAsset,
+      starknetAddAsset,
+      sovereignAddAsset,
+    ],
   );
 }
