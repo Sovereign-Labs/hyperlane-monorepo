@@ -101,19 +101,34 @@ impl S3Storage {
     }
 
     async fn anonymously_read_from_bucket(&self, key: String) -> Result<Option<Vec<u8>>> {
+        tracing::debug!(
+            %key,
+            bucket = %self.bucket,
+            folder = ?self.folder,
+            "Trying to read anonymously from the bucket");
         // check for metadata first
         if !self.check_metadata(key.clone()).await? {
+            tracing::info!("Metadata check returned false");
             return Ok(None);
         }
 
+        let composite_key = self.get_composite_key(key);
+        tracing::debug!(
+            %composite_key,
+            bucket = %self.bucket,
+            "Querying s3");
         let get_object_result = self
             .anonymous_client()
             .await
             .get_object()
             .bucket(self.bucket.clone())
-            .key(self.get_composite_key(key))
+            .key(composite_key)
             .send()
             .await;
+        tracing::debug!(
+            bucket = %self.bucket,
+            result = ?get_object_result,
+            "s3 query result");
         match get_object_result {
             Ok(res) => Ok(Some(res.body.collect().await?.into_bytes().to_vec())),
             Err(SdkError::ServiceError(err)) => match err.err() {
