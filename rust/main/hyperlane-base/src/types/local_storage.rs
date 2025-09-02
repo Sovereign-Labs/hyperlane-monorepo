@@ -90,7 +90,10 @@ impl CheckpointSyncer for LocalStorage {
                 return Ok(None);
             }
         };
-        let checkpoint = serde_json::from_slice(&data)?;
+        let checkpoint = serde_json::from_slice(&data).map_err(|error| {
+            tracing::debug!(?error, ?data, "Failed to deserialize checkpoint data");
+            error
+        })?;
         Ok(Some(checkpoint))
     }
 
