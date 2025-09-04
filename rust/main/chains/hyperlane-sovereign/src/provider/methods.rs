@@ -118,7 +118,25 @@ impl SovereignClient {
                 }
             },
         });
+        let message_id = message.id();
+        tracing::debug!(
+            message_id = %message_id,
+            message_nonce = message.nonce,
+            origin_domain_id = message.origin,
+            destination_domain_id = message.destination,
+            sender = %message.sender,
+            recipient = %message.recipient,
+            "Going to submit hyperlane message to the rollup");
         let (tx_hash, _) = self.build_and_submit(call_message).await?;
+        tracing::debug!(
+            message_id = %message_id,
+            message_nonce = message.nonce,
+            origin_domain_id = message.origin,
+            destination_domain_id = message.destination,
+            sender = %message.sender,
+            recipient = %message.recipient,
+            rollup_tx_hash = %tx_hash,
+            "Hyperlane message has been submitted to the rollup");
 
         let tx_details = self.get_tx_by_hash(tx_hash).await?;
         let gas_used = U256::from(
