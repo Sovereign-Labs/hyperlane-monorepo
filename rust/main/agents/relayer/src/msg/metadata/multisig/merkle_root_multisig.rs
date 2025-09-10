@@ -33,6 +33,7 @@ impl MultisigIsmMetadataBuilder for MerkleRootMultisigMetadataBuilder {
         ]
     }
 
+    #[tracing::instrument(skip(self, checkpoint_syncer), fields(hyp_message = ?message))]
     async fn fetch_metadata(
         &self,
         validators: &[H256],
@@ -40,19 +41,23 @@ impl MultisigIsmMetadataBuilder for MerkleRootMultisigMetadataBuilder {
         message: &HyperlaneMessage,
         checkpoint_syncer: &MultisigCheckpointSyncer,
     ) -> Result<Option<MultisigMetadata>, MetadataBuildError> {
+        tracing::debug!(?validators, threshold, "fetching metadata...");
         let highest_leaf_index = unwrap_or_none_result!(
             self.base_builder().highest_known_leaf_index().await,
             debug!("Couldn't get highest known leaf index")
         );
+        tracing::debug!(highest_leaf_index, "Got highest_known_leaf_index");
         let leaf_index = unwrap_or_none_result!(
             self.base_builder()
                 .get_merkle_leaf_id_by_message_id(message.id())
                 .await
                 .map_err(|err| MetadataBuildError::FailedToBuild(err.to_string()))?,
-            debug!(
-                hyp_message=?message,
-                "No merkle leaf found for message id, must have not been enqueued in the tree"
-            )
+            debug!("No merkle leaf found for message id, must have not been enqueued in the tree")
+        );
+        tracing::debug!(
+            leaf_index,
+            highest_leaf_index,
+            "Got leaf index for message id"
         );
         let quorum_checkpoint = unwrap_or_none_result!(
             checkpoint_syncer

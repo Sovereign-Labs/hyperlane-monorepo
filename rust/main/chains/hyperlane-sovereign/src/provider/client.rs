@@ -12,7 +12,7 @@ use tracing::instrument;
 use url::Url;
 
 use crate::types::{ConstantsResponse, SchemaResponse};
-use crate::{ConnectionConf, Signer};
+use crate::{ConnectionConf, Crypto, Signer};
 
 /// Request error details
 #[derive(Clone, Deserialize)]
@@ -89,7 +89,7 @@ impl SovereignClient {
             .map_err(|e| custom_err!("Failed to construct url: {e}"))?;
         let response: SchemaResponse = http_get(&client, get_schema).await?;
         let mut schema = response.schema;
-        schema
+        let chain_hash = schema
             .chain_hash()
             .map_err(|e| custom_err!("Failed to pre-compute rollups chain hash: {e}"))?;
 
@@ -97,6 +97,13 @@ impl SovereignClient {
             .join("/rollup/constants")
             .map_err(|e| custom_err!("Failed to construct url: {e}"))?;
         let response: ConstantsResponse = http_get(&client, get_constants).await?;
+        tracing::debug!(
+            %url,
+            constants = ?response,
+            signer_address = ?signer.address(),
+            signer_address_h256 = ?signer.h256_address(),
+            chain_hash = hex::encode(&chain_hash),
+            "Initializing SovereignClient");
         Ok(SovereignClient {
             url,
             client,

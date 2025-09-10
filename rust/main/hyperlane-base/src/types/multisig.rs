@@ -155,7 +155,13 @@ impl MultisigCheckpointSyncer {
                 }
             }
         }
-        debug!("No checkpoint found in range");
+        debug!(
+            minimum_index,
+            maximum_index,
+            ?origin,
+            ?destination,
+            "No checkpoint found in range"
+        );
         Ok(None)
     }
 

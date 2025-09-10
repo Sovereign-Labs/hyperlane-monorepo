@@ -152,8 +152,13 @@ impl SovereignClient {
         }
 
         let data: Data = self
-            .http_post("/sequencer/txs", &json!({ "body": tx }))
+            .http_post("/sequencer/txs", &json!({ "body": &tx }))
             .await?;
+
+        tracing::debug!(
+            received_transaction_hash = ?data.id,
+            %tx,
+            "Submitted transaction to the rollup");
 
         Ok(data.id)
     }

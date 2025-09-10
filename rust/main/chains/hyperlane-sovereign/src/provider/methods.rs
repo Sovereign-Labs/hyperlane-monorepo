@@ -104,6 +104,7 @@ impl SovereignClient {
     }
 
     /// Submit a message for processing in the rollup
+    #[tracing::instrument(skip(self, message, metadata, _tx_gas_limit), fields(hyp_message_id = ?message.id()))]
     pub async fn process(
         &self,
         message: &HyperlaneMessage,
@@ -118,27 +119,27 @@ impl SovereignClient {
                 }
             },
         });
-        let message_id = message.id();
         tracing::debug!(
-            message_id = %message_id,
+            message_id = ?message.id(),
             message_nonce = message.nonce,
             origin_domain_id = message.origin,
             destination_domain_id = message.destination,
-            sender = %message.sender,
-            recipient = %message.recipient,
+            sender = ?message.sender,
+            recipient = ?message.recipient,
             "Going to submit hyperlane message to the rollup");
         let (tx_hash, _) = self.build_and_submit(call_message).await?;
         tracing::debug!(
-            message_id = %message_id,
             message_nonce = message.nonce,
             origin_domain_id = message.origin,
             destination_domain_id = message.destination,
-            sender = %message.sender,
-            recipient = %message.recipient,
-            rollup_tx_hash = %tx_hash,
+            sender = ?message.sender,
+            recipient = ?message.recipient,
+            rollup_tx_hash = ?tx_hash,
             "Hyperlane message has been submitted to the rollup");
 
         let tx_details = self.get_tx_by_hash(tx_hash).await?;
+        tracing::debug!(?tx_details, "Received tx details");
+
         let gas_used = U256::from(
             tx_details
                 .receipt
