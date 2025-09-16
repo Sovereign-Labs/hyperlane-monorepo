@@ -18,6 +18,7 @@ import {
 
 export interface BaseHyperlaneRuntimeCall {
   bank?: BankCallMessage;
+  warp?: WarpCallMessage;
 }
 
 export interface BankCallMessage {
@@ -26,6 +27,48 @@ export interface BankCallMessage {
   burn?: Burn;
   mint?: Mint;
   freeze?: Freeze;
+}
+
+export interface TransferRemote {
+  /**
+   * The amount to transfer.
+   */
+  amount: number;
+  /**
+   * The domain of the destination chain.
+   */
+  destination_domain: number;
+  /**
+   * A limit for the payment to relayer to cover gas needed for message delivery.
+   */
+  gas_payment_limit: number;
+  /**
+   * The recipient on the destination chain.
+   */
+  recipient: string;
+  /**
+   * Selected relayer
+   */
+  relayer?: NewAdminClass | null;
+  /**
+   * The route to use for the transfer.
+   */
+  warp_route: string;
+  [property: string]: any;
+}
+
+/**
+ * A standard address derived from a SHA-256 hash of a public key.
+ *
+ * A VM-specific address type, allowing native support of the VM's address format.
+ */
+export interface NewAdminClass {
+  Standard?: string;
+  Vm?: string;
+}
+
+export interface WarpCallMessage {
+  transfer_remote?: TransferRemote;
 }
 
 export interface Burn {
@@ -184,7 +227,7 @@ export class SovereignTokenAdapter
           },
         },
       },
-      uniqueness: { generation: Date.now() },
+      generation: Date.now(),
       details: provider.context.defaultTxDetails,
     };
   }
@@ -263,7 +306,21 @@ export class SovereignHypTokenAdapter
   async populateTransferRemoteTx(
     p: TransferRemoteParams,
   ): Promise<UnsignedTransaction<BaseHyperlaneRuntimeCall>> {
-    // TODO: Add this to the interface
-    throw new Error('Not implemented');
+    const provider = await this.getProvider();
+    return {
+      runtime_call: {
+        warp: {
+          transfer_remote: {
+            amount: Number(p.weiAmountOrId),
+            destination_domain: p.destination,
+            recipient: p.recipient,
+            gas_payment_limit: 9007199254740991, // run-locally/src/sovereign uses a large value here. We try to follow it by using the largest valid number (2^53 -1)
+            warp_route: this.routeId,
+          },
+        },
+      },
+      generation: Date.now(),
+      details: provider.context.defaultTxDetails,
+    };
   }
 }
