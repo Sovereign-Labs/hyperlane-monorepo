@@ -14,7 +14,7 @@ use crate::indexer::SovIndexer;
 use crate::types::TxEvent;
 use crate::{ConnectionConf, Signer, SovereignProvider};
 
-/// Struct that retrieves event data for a Sovereign Mailbox contract
+/// Struct that retrieves event data for a Sovereign Mailbox contract.
 #[derive(Debug, Clone)]
 pub struct SovereignMailboxIndexer {
     _mailbox: SovereignMailbox,
