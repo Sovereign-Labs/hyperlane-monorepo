@@ -1,5 +1,11 @@
 # @hyperlane-xyz/cli
 
+## 18.2.1
+
+### Patch Changes
+
+- a5728818f: Fixed pre deploy balance check logic that attempted to convert to bignumber decimal numbers
+
 ## 18.2.0
 
 ### Minor Changes
