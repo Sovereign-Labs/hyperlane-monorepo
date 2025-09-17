@@ -227,7 +227,7 @@ export class SovereignTokenAdapter
           },
         },
       },
-      generation: Date.now(),
+      uniqueness: { generation: Date.now() },
       details: provider.context.defaultTxDetails,
     };
   }
@@ -319,7 +319,7 @@ export class SovereignHypTokenAdapter
           },
         },
       },
-      generation: Date.now(),
+      uniqueness: { generation: Date.now() },
       details: provider.context.defaultTxDetails,
     };
   }
