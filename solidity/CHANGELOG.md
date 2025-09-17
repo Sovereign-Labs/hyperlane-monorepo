@@ -1,5 +1,12 @@
 # @hyperlane-xyz/core
 
+## 9.0.10
+
+### Patch Changes
+
+- a5728818f: Updated import statements for ProxyAdmin and TransparentUpgradeableProxy contracts as they weren't included in the build artifacts used for verification with the old import
+  - @hyperlane-xyz/utils@18.2.1
+
 ## 9.0.9
 
 ### Patch Changes
