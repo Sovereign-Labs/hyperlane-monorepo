@@ -52,7 +52,8 @@ impl Crypto for Signer {
     }
 
     fn address(&self) -> ChainResult<String> {
-        Ok(format!("{:?}", self.h160_address()))
+        let addr = ethers::types::Address::from_slice(self.h160_address().as_bytes());
+        Ok(ethers::utils::to_checksum(&addr, None))
     }
 
     fn h256_address(&self) -> H256 {
@@ -74,7 +75,7 @@ mod test {
         let signer = Signer::new(&private_key).unwrap();
 
         assert_eq!(
-            "0xa6edfca3aa985dd3cc728bffb700933a986ac085",
+            "0xA6edfca3AA985Dd3CC728BFFB700933a986aC085",
             signer.address().unwrap()
         );
         assert_eq!(
