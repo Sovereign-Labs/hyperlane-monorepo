@@ -78,7 +78,7 @@ impl SovereignClient {
     pub async fn delivered(&self, message_id: H256) -> ChainResult<bool> {
         let query = format!("/modules/mailbox/state/deliveries/items/{message_id:?}");
 
-        match self.http_get::<()>(&query).await {
+        match self.http_get::<serde_json::Value>(&query).await {
             Ok(_) => Ok(true),
             Err(e) if e.is_not_found() => Ok(false),
             Err(e) => Err(e.into()),
@@ -100,7 +100,7 @@ impl SovereignClient {
         Ok(self
             .http_get::<Data>(&query)
             .await
-            .map(|res| res.amount.parse())??)
+            .map(|res| U256::from_dec_str(&res.amount))??)
     }
 
     /// Submit a message for processing in the rollup
