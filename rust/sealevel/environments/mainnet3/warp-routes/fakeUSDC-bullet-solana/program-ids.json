@@ -1,0 +1,10 @@
+{
+  "bulletmainnet": {
+    "hex": "0x48288f744525ce36be492935e5818584dc85b3456349096a1f1f912adfd2b12c",
+    "base58": "5rgE7NuTy46n1MKMFFkXB59fte4qJSNK8KWrRXBkMRUX"
+  },
+  "solanamainnet": {
+    "hex": "0xb65821d6f6712d105fef3d0c7d2588d05c4e5f7c18680b6dee87dd51a8ce0738",
+    "base58": "DGo9ScZKqduJD4SeskRe3iRSQAif1GkriCNDkTwTZtfH"
+  }
+}
