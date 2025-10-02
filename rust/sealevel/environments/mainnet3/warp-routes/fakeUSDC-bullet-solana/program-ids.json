@@ -1,10 +1,10 @@
 {
-  "bulletmainnet": {
-    "hex": "0x48288f744525ce36be492935e5818584dc85b3456349096a1f1f912adfd2b12c",
-    "base58": "5rgE7NuTy46n1MKMFFkXB59fte4qJSNK8KWrRXBkMRUX"
-  },
   "solanamainnet": {
-    "hex": "0xb65821d6f6712d105fef3d0c7d2588d05c4e5f7c18680b6dee87dd51a8ce0738",
-    "base58": "DGo9ScZKqduJD4SeskRe3iRSQAif1GkriCNDkTwTZtfH"
+    "hex": "0x7e142675602d2bb854e454c467c8c03c5b48f57a9055914599d938b9dff72723",
+    "base58": "9VAC58QDZy6gXwrznaLPGDmzP9fSe1Wzje4ETsdnTKHU"
+  },
+  "bulletmainnet": {
+    "hex": "0x43c7e97462f8c7bb870777b0876af7fc451850efd2a16d7fff17dee8783188d7",
+    "base58": "5Zb7tuBXkppmg69UEZY45kNkcMqTdeQF4dvTL5jy31dY"
   }
 }

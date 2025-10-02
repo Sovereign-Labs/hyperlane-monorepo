@@ -35,7 +35,7 @@ fn get_compute_unit_price(is_solanamainnet: bool) -> u64 {
         // Generally taking a low/medium value from https://www.quicknode.com/gas-tracker/solana
         500_000
     } else {
-        0
+        500_000
     }
 }
 
