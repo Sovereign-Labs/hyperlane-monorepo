@@ -145,36 +145,26 @@ impl SovereignClient {
         message: &HyperlaneMessage,
         metadata: &[u8],
     ) -> ChainResult<TxCostEstimate> {
-        #[derive(Clone, Debug, Deserialize)]
-        struct Data {
-            apply_tx_result: ApplyTxResult,
-        }
-
-        #[derive(Clone, Debug, Deserialize)]
-        struct ApplyTxResult {
-            receipt: Receipt,
-            transaction_consumption: TransactionConsumption,
-        }
-
-        #[derive(Clone, Debug, Deserialize)]
-        struct Receipt {
-            receipt: ReceiptInner,
-        }
-
-        #[derive(Clone, Debug, Deserialize)]
-        struct ReceiptInner {
-            outcome: String,
-            content: String,
-        }
-
-        #[derive(Clone, Debug, Deserialize)]
-        struct TransactionConsumption {
+        #[derive(Debug, Clone, Deserialize)]
+        struct SuccessOutcome {
+            gas_used: String,
             priority_fee: String,
-            base_fee: Vec<u64>,
+        }
+
+        #[derive(Debug, Clone, Deserialize)]
+        pub struct FailOutcome {
+            reason: String,
+        }
+
+        #[derive(Debug, Clone, Deserialize)]
+        #[serde(tag = "outcome", rename_all = "snake_case")]
+        enum SimulateOutcome {
+            Success(SuccessOutcome),
+            Reverted(FailOutcome),
+            Skipped(FailOutcome),
         }
 
         let query = "/rollup/simulate";
-
         let call_message = json!({
             "mailbox": {
                 "process": {
@@ -183,61 +173,30 @@ impl SovereignClient {
                 }
             },
         });
+        let request = json!({
+            "sender": hex::encode(self.signer.public_key()),
+            "call": call_message,
+        });
 
-        let encoded_call_message = self.encoded_call_message(&call_message)?;
-        let request_json = |public_key| {
-            json!({
-                "body": {
-                  "details":{
-                    "chain_id": self.chain_id,
-                    "max_fee": "100000000",
-                    "max_priority_fee_bips": 0
-                  },
-                  "encoded_call_message": &encoded_call_message,
-                  "generation": self.get_generation() as u64,
-                  "sender_pub_key": format!("\"{}\"", hex::encode(public_key))
-                }
-            })
-        };
+        let outcome = self.http_post::<SimulateOutcome>(query, &request).await?;
 
-        let request = request_json(self.signer.public_key());
-        let response = self.http_post::<Data>(query, &request).await?;
-
-        let receipt = response.apply_tx_result.receipt.clone();
-        if receipt.receipt.outcome != "successful" {
-            let raw_reason = BASE64_STANDARD
-                .decode(&receipt.receipt.content)
-                .expect("failed to decode base64");
-            let reason = String::from_utf8_lossy(&raw_reason);
-            return Err(custom_err!(
-                "Transaction simulation reverted: {:?}, reason: {:?})",
-                receipt,
-                &reason,
-            ));
+        match outcome {
+            SimulateOutcome::Success(success_outcome) => {
+                let priority_fee = success_outcome.priority_fee.parse::<u128>()?;
+                let gas_used = success_outcome.gas_used.parse::<u128>()?;
+                Ok(TxCostEstimate {
+                    gas_limit: (priority_fee + gas_used).into(),
+                    gas_price: Default::default(),
+                    l2_gas_limit: None,
+                })
+            }
+            SimulateOutcome::Reverted(fail_outcome) | SimulateOutcome::Skipped(fail_outcome) => {
+                Err(custom_err!(
+                    "Transaction simulation failed, reason: {}",
+                    fail_outcome.reason
+                ))
+            }
         }
-
-        let tx_consumption = response.apply_tx_result.transaction_consumption;
-        let priority_fee = U256::from(
-            tx_consumption
-                .priority_fee
-                .parse::<u128>()
-                .map_err(|e| custom_err!("Couldn't parse priority fee: {e}"))?,
-        );
-        let total_base_fee = U256::from(
-            tx_consumption
-                .base_fee
-                .into_iter()
-                .map(u128::from)
-                .sum::<u128>(),
-        );
-
-        let res = TxCostEstimate {
-            gas_limit: total_base_fee + priority_fee,
-            gas_price: FixedPointNumber::default(),
-            l2_gas_limit: None,
-        };
-
-        Ok(res)
     }
 
     /// Get the type of the ISM of given recipient

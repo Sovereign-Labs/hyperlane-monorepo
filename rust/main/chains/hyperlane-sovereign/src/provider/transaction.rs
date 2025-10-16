@@ -116,13 +116,11 @@ impl SovereignClient {
         let signature = signer.sign(&utx_bytes)?;
 
         if let Some(obj) = utx_json.as_object_mut() {
-            obj.insert("signature".to_string(), json!({ "msg_sig": signature }));
-            obj.insert(
-                "pub_key".to_string(),
-                json!({
-                    "pub_key": signer.public_key()
-                }),
-            );
+            let sig = hex::encode(&signature);
+            obj.insert("signature".to_string(), serde_json::to_value(sig)?);
+
+            let pub_key = hex::encode(signer.public_key());
+            obj.insert("pub_key".to_string(), serde_json::to_value(pub_key)?);
         }
         tracing::debug!(?utx_json, "Signed tx");
         Ok(utx_json)
