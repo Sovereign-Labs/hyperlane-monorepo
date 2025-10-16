@@ -128,9 +128,7 @@ impl SovereignClient {
 
     async fn serialize_tx(&self, tx_json: &Value) -> ChainResult<String> {
         let tx_json = json!({
-            "versioned_tx": {
-                "V0": tx_json
-            }
+            "V0": tx_json
         });
         tracing::trace!(?tx_json, "Serializing transaction");
         let tx_index = self
