@@ -1,0 +1,16 @@
+{
+  "solanamainnet": {
+    "type": "collateral",
+    "decimals": 9,
+    "interchainSecurityModule": "3qz3f98YvvEid5kyLPZZ4yU817y2kbewiWRqyEyn4RaZ",
+    "token": "9JK9rZdJgkiojpsBkU2zET3PBcUsWH7QftEL6vLSCAW7"
+  },
+  "bulletmainnet": {
+    "type": "synthetic",
+    "decimals": 9,
+    "name": "Solana",
+    "symbol": "SOL",
+    "token": "token_1wux8458cvz04zxce95xj2pqc6c2gfs75zw22z83n5m02qzhd7gysa2clvy",
+    "foreignDeployment": "0x8dbeb3391145e00328c58161fdfd296beb1fc8ef760c8c12e912ae6a5393855b"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "solanamainnet": {
+    "hex": "0x7e142675602d2bb854e454c467c8c03c5b48f57a9055914599d938b9dff72723",
+    "base58": "9VAC58QDZy6gXwrznaLPGDmzP9fSe1Wzje4ETsdnTKHU"
+  },
+  "bulletmainnet": {
+    "hex": "0x43c7e97462f8c7bb870777b0876af7fc451850efd2a16d7fff17dee8783188d7",
+    "base58": "5Zb7tuBXkppmg69UEZY45kNkcMqTdeQF4dvTL5jy31dY"
+  }
+}
