@@ -155,10 +155,15 @@ impl SovereignClient {
         }
 
         #[derive(Debug, Clone, Deserialize)]
+        pub struct RevertOutcome {
+            detail: serde_json::Map<String, serde_json::Value>,
+        }
+
+        #[derive(Debug, Clone, Deserialize)]
         #[serde(tag = "outcome", rename_all = "snake_case")]
         enum SimulateOutcome {
             Success(SuccessOutcome),
-            Reverted(FailOutcome),
+            Reverted(RevertOutcome),
             Skipped(FailOutcome),
         }
 
@@ -188,12 +193,14 @@ impl SovereignClient {
                     l2_gas_limit: None,
                 })
             }
-            SimulateOutcome::Reverted(fail_outcome) | SimulateOutcome::Skipped(fail_outcome) => {
-                Err(custom_err!(
-                    "Transaction simulation failed, reason: {}",
-                    fail_outcome.reason
-                ))
-            }
+            SimulateOutcome::Reverted(revert_outcome) => Err(custom_err!(
+                "Transaction simulation reverted, detail: {:?}",
+                revert_outcome.detail
+            )),
+            SimulateOutcome::Skipped(fail_outcome) => Err(custom_err!(
+                "Transaction simulation failed, reason: {}",
+                fail_outcome.reason
+            )),
         }
     }
 
