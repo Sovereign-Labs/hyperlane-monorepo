@@ -301,7 +301,7 @@ export class SovereignHypTokenAdapter
       {},
       { amount: string; token_id: string }
     >(`/modules/mailbox/quote-dispatch`, {
-      query: { 'destination-domain': destination },
+      query: { destination_domain: destination },
     });
     return {
       igpQuote: {
