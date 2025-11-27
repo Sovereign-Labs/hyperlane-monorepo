@@ -295,13 +295,20 @@ export class SovereignHypTokenAdapter
 
   async quoteTransferRemoteGas({
     destination,
+    recipient,
   }: QuoteTransferRemoteParams): Promise<InterchainGasQuote> {
     const provider = await this.getProvider();
     const { amount } = await provider.http.get<
       {},
       { amount: string; token_id: string }
     >(`/modules/mailbox/quote-dispatch`, {
-      query: { destination_domain: destination },
+      query: {
+        destination_domain: destination,
+        gas_limit: '340282366920938463463374607431768211455',
+        recipient_address: recipient,
+        relayer:
+          '0xd6da36c7daa09cfef1ebe929653922d6d9effb1eda9e271b7e61c75258d29f42',
+      },
     });
     return {
       igpQuote: {
