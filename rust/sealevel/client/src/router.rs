@@ -152,6 +152,11 @@ pub(crate) trait RouterDeployer<Config: RouterConfigGetter + std::fmt::Debug>:
             .unwrap_or_else(|| {
                 let chain_program_name = format!("{}-{}", program_name, chain_metadata.name);
 
+                // Use the Context's client URL, which comes from the CLI -u flag (or Solana config).
+                // This ensures that when a user explicitly provides an RPC URL via -u, it's used
+                // for program deployment. If no -u is provided, the Solana config file URL is used.
+                // Note: To use chain-specific URLs from metadata instead, don't pass -u and ensure
+                // your Solana config points to the desired RPC, or use chain metadata URL directly.
                 let program_id = deploy_program(
                     ctx.payer_keypair_path(),
                     key_dir,
@@ -160,7 +165,7 @@ pub(crate) trait RouterDeployer<Config: RouterConfigGetter + std::fmt::Debug>:
                         .join(format!("{}.so", program_name))
                         .to_str()
                         .unwrap(),
-                    &chain_metadata.rpc_urls[0].http,
+                    &ctx.client.url(),
                     chain_metadata.domain_id,
                 )
                 .unwrap();

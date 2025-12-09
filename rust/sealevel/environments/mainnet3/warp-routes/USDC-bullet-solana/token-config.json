@@ -1,0 +1,16 @@
+{
+  "solanamainnet": {
+    "type": "collateral",
+    "decimals": 6,
+    "interchainSecurityModule": "3qz3f98YvvEid5kyLPZZ4yU817y2kbewiWRqyEyn4RaZ",
+    "token": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+  },
+  "bulletmainnet": {
+    "type": "synthetic",
+    "decimals": 6,
+    "name": "USD Coin",
+    "symbol": "USDC",
+    "token": "token_1zz4s83p84lpt7mtsft5js37nff7pjwkw6lxynqjk2qmht9eqpvrqcss48r",
+    "foreignDeployment": "0x500345f9072b67f8dabad95bfb3bd048e3e1ed3586c76d8b4497941e91e8492a"
+  }
+}

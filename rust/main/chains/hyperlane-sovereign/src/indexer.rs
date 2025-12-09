@@ -88,7 +88,12 @@ where
     }
 
     // Helper function to process a single transaction
-    fn process_tx(&self, tx: &Tx, slot_num: u64, slot_hash: H256) -> ChainResult<Vec<(Indexed<T>, LogMeta)>> {
+    fn process_tx(
+        &self,
+        tx: &Tx,
+        slot_num: u64,
+        slot_hash: H256,
+    ) -> ChainResult<Vec<(Indexed<T>, LogMeta)>> {
         tx.events
             .iter()
             .filter(|ev| ev.key == Self::EVENT_KEY)

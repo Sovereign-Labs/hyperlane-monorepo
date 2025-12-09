@@ -75,4 +75,3 @@ impl Indexer<H256> for SovereignDeliveryIndexer {
         <Self as SovIndexer<H256>>::fetch_logs_by_tx_hash(self, tx_hash).await
     }
 }
-
