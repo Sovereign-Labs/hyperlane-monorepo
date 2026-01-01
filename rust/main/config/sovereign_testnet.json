@@ -31,6 +31,37 @@
         "account_type": "ethereum"
       }
     },
+    "aledrynet": {
+      "name": "aledrynet",
+      "displayName": "Ale Drynet",
+      "isTestnet": true,
+      "chainId": "9000031337",
+      "domainId": "537712",
+      "protocol": "sovereign",
+      "nativeToken": {
+        "decimals": 18,
+        "name": "Ether",
+        "symbol": "ETH"
+      },
+      "rpcUrls": [
+        {
+          "http": "http://ale-drynet.soverign-labs.xyz:80"
+        }
+      ],
+      "mailbox": "0x0000000000000000000000000000000000000000",
+      "merkleTreeHook": "0x0000000000000000000000000000000000000000",
+      "interchainGasPaymaster": "0x0000000000000000000000000000000000000000",
+      "validatorAnnounce": "0x0000000000000000000000000000000000000000",
+      "index": {
+        "from": 0,
+        "chunk": 1999
+      },
+      "finalityBlocks": 1,
+      "signer": {
+        "type": "sovereignKey",
+        "account_type": "ethereum"
+      }
+    },
     "ethtest": {
       "name": "ethtest",
       "displayName": "EthTest",
