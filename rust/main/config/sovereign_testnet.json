@@ -45,7 +45,7 @@
       },
       "rpcUrls": [
         {
-          "http": "http://ale-drynet.soverign-labs.xyz:80"
+          "http": "http://ale-drynet.sovereign-labs.xyz:80"
         }
       ],
       "mailbox": "0x0000000000000000000000000000000000000000",
