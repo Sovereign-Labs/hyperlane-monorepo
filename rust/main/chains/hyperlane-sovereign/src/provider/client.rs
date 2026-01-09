@@ -149,7 +149,7 @@ fn is_retryable(err: &RestClientError) -> bool {
     }
 }
 
-#[instrument(skip(client), ret(level = "trace"), err(level = "info"))]
+#[instrument(skip(client), ret(level = "trace"))]
 pub(crate) async fn http_get<T>(client: &Client, url: Url) -> Result<T, RestClientError>
 where
     T: Debug + for<'a> Deserialize<'a>,
