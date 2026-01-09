@@ -210,6 +210,23 @@ where
     parse_response(response).await
 }
 
+async fn try_parse_json<T>(response: Response) -> Result<T, RestClientError>
+where
+    T: Debug + for<'a> Deserialize<'a>,
+{
+    let status = response.status();
+    let body = response
+        .text()
+        .await
+        .map_err(|e| RestClientError::Other(format!("Failed to extract body: {e:?}")))?;
+
+    serde_json::from_str(&body).map_err(|e| {
+        RestClientError::Other(format!(
+            "Failed to decode JSON response with status {status}: {e:?}, body: {body}"
+        ))
+    })
+}
+
 async fn parse_response<T>(response: Response) -> Result<T, RestClientError>
 where
     T: Debug + for<'a> Deserialize<'a>,
@@ -217,15 +234,9 @@ where
     let status = response.status();
 
     if status.is_success() {
-        Ok(response
-            .json()
-            .await
-            .map_err(|e| RestClientError::Other(format!("{e:?}")))?)
+        Ok(try_parse_json(response).await?)
     } else {
-        let err = response
-            .json()
-            .await
-            .map_err(|e| RestClientError::Other(format!("{e:?}")))?;
+        let err = try_parse_json::<ErrorInfo>(response).await?;
         Err(RestClientError::Response(status, err))
     }
 }
