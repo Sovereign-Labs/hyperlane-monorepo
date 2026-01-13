@@ -12,6 +12,8 @@ pub struct TxEvent {
     pub value: Value,
     /// Global event's index.
     pub number: u64,
+    /// The hash of the transaction.
+    pub tx_hash: H256,
 }
 
 /// A Sovereign transaction.
@@ -76,6 +78,17 @@ pub struct Slot {
     pub hash: H256,
     /// Batches in the slot, if any.
     pub batches: Vec<Batch>,
+    /// Timestamp of the slot.
+    pub timestamp: u64,
+}
+
+/// A slot that may contain transaction batches.
+#[derive(Clone, Debug, Deserialize)]
+pub struct SlotHeader {
+    /// Global slot index.
+    pub number: u64,
+    /// A hash of the slot.
+    pub hash: H256,
     /// Timestamp of the slot.
     pub timestamp: u64,
 }

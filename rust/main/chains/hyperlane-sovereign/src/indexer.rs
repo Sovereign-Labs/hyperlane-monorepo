@@ -31,19 +31,32 @@ where
     ) -> ChainResult<Vec<(Indexed<T>, LogMeta)>> {
         let logs = range
             .map(|slot_num| async move {
-                let slot = self.provider().get_specified_slot(slot_num.into()).await?;
+                let (header, events): (_, _) = tokio::try_join!(
+                    self.provider().get_header_for_slot(slot_num.into()),
+                    self.provider()
+                        .get_events_for_slot(slot_num.into(), Self::EVENT_KEY)
+                )?;
+
                 ChainResult::Ok(stream::iter(
-                    slot.batches
+                    events
                         .into_iter()
-                        .flat_map(|batch| batch.txs)
-                        .map(move |tx| self.process_tx(&tx, slot.number, slot.hash)),
+                        // just in case as there is only a prefix check in the rollup
+                        .filter(|ev| ev.key == Self::EVENT_KEY)
+                        .scan((0, Default::default()), |state, ev| {
+                            if ev.tx_hash != state.1 {
+                                *state = (state.0 + 1, ev.tx_hash);
+                            }
+                            Some((state.0, ev))
+                        })
+                        .map(move |(tx_num, ev)| {
+                            self.process_event(tx_num, &ev, slot_num as u64, header.hash)
+                        }),
                 ))
             })
             .collect::<FuturesOrdered<_>>()
             .try_flatten()
             .try_collect::<Vec<_>>()
-            .await?
-            .concat();
+            .await?;
 
         Ok(logs)
     }
@@ -97,14 +110,15 @@ where
         tx.events
             .iter()
             .filter(|ev| ev.key == Self::EVENT_KEY)
-            .map(|ev| self.process_event(tx, ev, slot_num, slot_hash))
+            // TODO the tx_number is not consistent with the one we generate above
+            .map(|ev| self.process_event(tx.number, ev, slot_num, slot_hash))
             .collect()
     }
 
     // Helper function to process a single event
     fn process_event(
         &self,
-        tx: &Tx,
+        tx_num: u64,
         event: &TxEvent,
         slot_num: u64,
         slot_hash: H256,
@@ -116,12 +130,12 @@ where
             address: H256::default(),
             block_number: slot_num,
             block_hash: slot_hash,
-            transaction_id: tx.hash.into(),
+            transaction_id: event.tx_hash.into(),
+            transaction_index: tx_num,
             // NOTE: this diverges from the Ethereum behavior, as for sovereign, those numbers are
             // global, and for Ethereum, they are block local. However, deducing block-local numbers
             // for transactions fetched by hash would require pulling the whole slot data, which means
             // a lot of overhead
-            transaction_index: tx.number,
             log_index: event.number.into(),
         };
 
