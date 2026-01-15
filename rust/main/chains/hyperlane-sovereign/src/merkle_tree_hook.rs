@@ -71,33 +71,6 @@ impl SequenceAwareIndexer<MerkleTreeInsertion> for SovereignMerkleTreeHookIndexe
         <Self as SovIndexer<MerkleTreeInsertion>>::latest_sequence_count_and_tip(self).await
     }
 }
-impl SovereignMerkleTreeHookIndexer {
-    /// Search in the given range for the lowest slot with the given
-    /// tree-count.
-    ///
-    /// It returns the slot and the count just before this slot to
-    /// handle multiple events in a slot.
-    async fn binary_search(
-        &self,
-        mut left: u32,
-        mut right: u32,
-        tree_count: u32,
-    ) -> ChainResult<(u32, u32)> {
-        let mut left_cnt = 0;
-        while left < right {
-            let mid = left + (right - left) / 2;
-            let cnt = self.provider().tree_count(Some(mid as u64)).await?;
-
-            if cnt < tree_count {
-                left = mid + 1;
-                left_cnt = left_cnt.max(cnt);
-            } else {
-                right = mid;
-            }
-        }
-        Ok((left, left_cnt))
-    }
-}
 
 #[async_trait]
 impl Indexer<MerkleTreeInsertion> for SovereignMerkleTreeHookIndexer {
@@ -105,47 +78,8 @@ impl Indexer<MerkleTreeInsertion> for SovereignMerkleTreeHookIndexer {
         &self,
         range: RangeInclusive<u32>,
     ) -> ChainResult<Vec<(Indexed<MerkleTreeInsertion>, LogMeta)>> {
-        let left = *range.start();
-        let mut right = *range.end();
-
-        // check the boundaries first - the ranges are overlapping
-        // between different calls so no need to subtract one.
-        let (start, mut end): (_, _) = tokio::try_join!(
-            self.provider().tree_count(Some(left as u64)),
-            self.provider().tree_count(Some(right as u64)),
-        )?;
-
-        let mut res = vec![];
-        while start < end {
-            // use binary search to find the slot start is incremented
-            let (slot_num, next_count) = self.binary_search(left, right, end).await?;
-            right = slot_num;
-            end = next_count;
-
-            // fetch the metadata
-            let (header, events) = tokio::try_join!(
-                self.provider().get_header_for_slot(slot_num.into()),
-                self.provider()
-                    .get_events_for_slot(slot_num.into(), Self::EVENT_KEY)
-            )?;
-
-            res.extend(
-                events
-                    .into_iter()
-                    // just in case as there is only a prefix check in the rollup
-                    .filter(|ev| ev.key == Self::EVENT_KEY)
-                    .enumerate()
-                    .map(move |(nr, ev)| {
-                        // TODO the tx_number is not consistent with the one from process_tx
-                        self.process_event(nr as u64, &ev, slot_num as u64, header.hash)
-                    })
-                    .flatten()
-                    .collect::<Vec<_>>(),
-            );
-        }
-        Ok(res)
+        <Self as SovIndexer<MerkleTreeInsertion>>::fetch_logs_in_range(self, range).await
     }
-
     async fn get_finalized_block_number(&self) -> ChainResult<u32> {
         <Self as SovIndexer<MerkleTreeInsertion>>::get_finalized_block_number(self).await
     }

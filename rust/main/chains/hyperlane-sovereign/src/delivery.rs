@@ -38,7 +38,7 @@ impl crate::indexer::SovIndexer<H256> for SovereignDeliveryIndexer {
     }
 
     async fn latest_sequence(&self, at_slot: Option<u64>) -> ChainResult<Option<u32>> {
-        let sequence = self.provider().get_count(at_slot).await?;
+        let sequence = self.provider().get_deliveries(at_slot).await?;
         Ok(Some(sequence))
     }
 

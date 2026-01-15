@@ -29,9 +29,13 @@ where
         &self,
         range: RangeInclusive<u32>,
     ) -> ChainResult<Vec<(Indexed<T>, LogMeta)>> {
-        let logs = range
+        let slots = range_to_slots(self, range).await?;
+
+        slots
+            .into_iter()
             .map(|slot_num| async move {
-                let (header, events): (_, _) = tokio::try_join!(
+                // fetch the metadata
+                let (header, events) = tokio::try_join!(
                     self.provider().get_header_for_slot(slot_num.into()),
                     self.provider()
                         .get_events_for_slot(slot_num.into(), Self::EVENT_KEY)
@@ -42,23 +46,17 @@ where
                         .into_iter()
                         // just in case as there is only a prefix check in the rollup
                         .filter(|ev| ev.key == Self::EVENT_KEY)
-                        .scan((0, Default::default()), |state, ev| {
-                            if ev.tx_hash != state.1 {
-                                *state = (state.0 + 1, ev.tx_hash);
-                            }
-                            Some((state.0, ev))
-                        })
+                        .enumerate()
+                        // TODO the tx_number is not consistent with the one from process_tx
                         .map(move |(tx_num, ev)| {
-                            self.process_event(tx_num, &ev, slot_num as u64, header.hash)
+                            self.process_event(tx_num as u64, &ev, slot_num as u64, header.hash)
                         }),
                 ))
             })
             .collect::<FuturesOrdered<_>>()
             .try_flatten()
             .try_collect::<Vec<_>>()
-            .await?;
-
-        Ok(logs)
+            .await
     }
 
     async fn get_finalized_block_number(&self) -> ChainResult<u32> {
@@ -141,4 +139,69 @@ where
 
         Ok((decoded_event.into(), meta))
     }
+}
+
+async fn range_to_slots<T>(
+    indexer: &(impl SovIndexer<T> + ?Sized),
+    range: RangeInclusive<u32>,
+) -> ChainResult<Vec<u32>>
+where
+    T: Into<Indexed<T>> + Debug + Clone + Send,
+{
+    let mut res = vec![];
+
+    let left = *range.start();
+    let mut right = *range.end();
+
+    // check the boundaries first - the ranges are overlapping
+    // between different calls so no need to subtract one.
+    if let (Some(start), Some(mut end)) = tokio::try_join!(
+        indexer.latest_sequence(Some(left as u64)),
+        indexer.latest_sequence(Some(right as u64)),
+    )? {
+        while start < end {
+            // use binary search to find the slot of the last entry
+            let Some((slot_num, next_count)) = binary_search(indexer, left, right, end).await?
+            else {
+                break;
+            };
+            right = slot_num;
+            end = next_count;
+            res.push(slot_num);
+        }
+    } else {
+        res.extend(range);
+    }
+    Ok(res)
+}
+
+/// Search in the given range for the lowest slot with the given
+/// tree-count.
+///
+/// It returns the slot and the count just before this slot to
+/// handle multiple events in a slot.
+async fn binary_search<T>(
+    indexer: &(impl SovIndexer<T> + ?Sized),
+    mut left: u32,
+    mut right: u32,
+    tree_count: u32,
+) -> ChainResult<Option<(u32, u32)>>
+where
+    T: Into<Indexed<T>> + Debug + Clone + Send,
+{
+    let mut left_cnt = 0;
+    while left < right {
+        let mid = left + (right - left) / 2;
+        let Some(cnt) = indexer.latest_sequence(Some(mid as u64)).await? else {
+            return Ok(None);
+        };
+
+        if cnt < tree_count {
+            left = mid + 1;
+            left_cnt = left_cnt.max(cnt);
+        } else {
+            right = mid;
+        }
+    }
+    Ok(Some((left, left_cnt)))
 }

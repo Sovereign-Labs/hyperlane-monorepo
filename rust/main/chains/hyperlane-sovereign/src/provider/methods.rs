@@ -85,6 +85,20 @@ impl SovereignClient {
         Ok(self.http_get::<Data>(query).await?.nonce)
     }
 
+    /// Get the count of delivered messages in Mailbox
+    pub async fn get_deliveries(&self, at_height: Option<u64>) -> ChainResult<u32> {
+        #[derive(Clone, Debug, Deserialize)]
+        struct Data {
+            nonce: u32,
+        }
+        let query = match at_height {
+            None => "/modules/mailbox/deliveries",
+            Some(slot) => &format!("/modules/mailbox/deliveries?slot_number={slot}"),
+        };
+
+        Ok(self.http_get::<Data>(query).await?.nonce)
+    }
+
     /// Check if message with given id was delivered
     pub async fn delivered(&self, message_id: H256) -> ChainResult<bool> {
         let query = format!("/modules/mailbox/state/deliveries/items/{message_id:?}");
