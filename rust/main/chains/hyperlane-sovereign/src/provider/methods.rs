@@ -95,10 +95,11 @@ impl SovereignClient {
             address.as_ref()
         );
 
-        Ok(self
-            .http_get::<Data>(&query)
-            .await
-            .map(|res| U256::from_dec_str(&res.amount))??)
+        match self.http_get::<Data>(&query).await {
+            Ok(res) => Ok(U256::from_dec_str(&res.amount)?),
+            Err(e) if e.is_not_found() => Ok(U256::zero()),
+            Err(e) => Err(e.into()),
+        }
     }
 
     /// Submit a message for processing in the rollup
