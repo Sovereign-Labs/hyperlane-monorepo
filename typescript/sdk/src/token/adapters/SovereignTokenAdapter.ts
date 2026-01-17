@@ -1,5 +1,5 @@
 import { Bank } from '@sovereign-sdk/modules';
-import { UnsignedTransaction } from '@sovereign-sdk/web3';
+import { UnsignedTransaction } from '@sovereign-sdk/types';
 
 import { Address, Domain } from '@hyperlane-xyz/utils';
 
@@ -297,10 +297,10 @@ export class SovereignHypTokenAdapter
     destination,
   }: QuoteTransferRemoteParams): Promise<InterchainGasQuote> {
     const provider = await this.getProvider();
-    const { amount } = await provider.http.get<
-      {},
-      { amount: string; token_id: string }
-    >(`/modules/mailbox/quote-dispatch`, {
+    const { amount } = await provider.http.get<{
+      amount: string;
+      token_id: string;
+    }>(`/modules/mailbox/quote-dispatch`, {
       query: { destination_domain: destination },
     });
     return {

@@ -10,8 +10,8 @@ import type {
   Transaction as SolTransaction,
   VersionedTransactionResponse as SolTransactionReceipt,
 } from '@solana/web3.js';
+import { Transaction as SovereignRollupTransaction } from '@sovereign-sdk/types';
 import {
-  Transaction as SovereignRollupTransaction,
   TransactionResult as SovereignTransactionResult,
   StandardRollup,
 } from '@sovereign-sdk/web3';
