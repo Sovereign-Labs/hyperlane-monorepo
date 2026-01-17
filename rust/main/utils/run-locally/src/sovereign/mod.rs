@@ -68,7 +68,7 @@ async fn run_locally() {
 
     wait_until_nodes_healthy(&params);
 
-    sleep(Duration::from_secs(10));
+    sleep(Duration::from_secs(20));
 
     let chain_registry = ChainRegistry {
         chains: params

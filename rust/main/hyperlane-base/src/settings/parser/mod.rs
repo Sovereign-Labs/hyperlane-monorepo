@@ -296,7 +296,8 @@ fn parse_chain(
             HyperlaneDomainProtocol::Ethereum
             | HyperlaneDomainProtocol::Aleo
             | HyperlaneDomainProtocol::Radix
-            | HyperlaneDomainProtocol::Sealevel => SubmitterType::Lander,
+            | HyperlaneDomainProtocol::Sealevel
+            | HyperlaneDomainProtocol::Sovereign => SubmitterType::Lander,
             _ => Default::default(),
         },
     };

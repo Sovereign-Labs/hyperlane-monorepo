@@ -772,7 +772,7 @@ fn parse_sovereign_native_token(
 
     let Some(decimals) = decimals else {
         err.push(
-            (&chain.cwp).add("nativeToken").add("decimals"),
+            (&chain.cwp).add("native_token").add("decimals"),
             eyre!("nativeToken.decimals is required for Sovereign chains"),
         );
         return None;

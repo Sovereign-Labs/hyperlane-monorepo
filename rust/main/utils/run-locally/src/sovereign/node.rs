@@ -126,10 +126,7 @@ pub fn build_sovereign_node_docker_with_constants(rollup_dir: &Path, params: &So
 }
 
 #[apply(as_task)]
-pub fn start_sovereign_node_docker(
-    params: SovereignParameters,
-    rollup_path: PathBuf,
-) -> AgentHandles {
+pub fn start_sovereign_node_docker(params: SovereignParameters) -> AgentHandles {
     log!(
         "Starting Sovereign node '{}' with RPC port {} in Docker container",
         params.name,
@@ -142,7 +139,6 @@ pub fn start_sovereign_node_docker(
     let state_dir = temp_dir.path().join("state");
     fs::create_dir_all(&da_dir).expect("Failed to create da directory");
     fs::create_dir_all(&state_dir).expect("Failed to create state directory");
-    let rollup_config = rollup_path.join("configs/mock/rollup-dockerized.toml");
 
     let node_name_static = Box::leak(params.name.clone().into_boxed_str());
     let sovereign_node = Program::new("docker")
@@ -153,10 +149,6 @@ pub fn start_sovereign_node_docker(
         .arg("env", "RUST_LOG=info")
         .arg("volume", format!("{}:/mnt/da", da_dir.display()))
         .arg("volume", format!("{}:/mnt/state", state_dir.display()))
-        .arg(
-            "volume",
-            format!("{}:/app/config/rollup.toml", rollup_config.display()),
-        )
         .arg("publish", format!("{}:12346", params.port))
         .cmd(params.docker_image())
         .spawn(node_name_static, None);
@@ -194,7 +186,7 @@ pub fn setup_sovereign_environment() -> (PathBuf, Vec<(AgentHandles, SovereignPa
     let mut agents = Vec::with_capacity(SOVEREIGN_NODE_COUNT);
     for i in 0..SOVEREIGN_NODE_COUNT {
         let params = SovereignParameters::for_index(i);
-        let agent = start_sovereign_node_docker(params.clone(), rollup_path.clone()).join();
+        let agent = start_sovereign_node_docker(params.clone()).join();
         agents.push((agent, params));
     }
 
