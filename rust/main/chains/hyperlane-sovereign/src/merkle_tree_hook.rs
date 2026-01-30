@@ -80,7 +80,6 @@ impl Indexer<MerkleTreeInsertion> for SovereignMerkleTreeHookIndexer {
     ) -> ChainResult<Vec<(Indexed<MerkleTreeInsertion>, LogMeta)>> {
         <Self as SovIndexer<MerkleTreeInsertion>>::fetch_logs_in_range(self, range).await
     }
-
     async fn get_finalized_block_number(&self) -> ChainResult<u32> {
         <Self as SovIndexer<MerkleTreeInsertion>>::get_finalized_block_number(self).await
     }

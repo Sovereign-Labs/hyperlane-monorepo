@@ -29,23 +29,34 @@ where
         &self,
         range: RangeInclusive<u32>,
     ) -> ChainResult<Vec<(Indexed<T>, LogMeta)>> {
-        let logs = range
+        let slots = range_to_slots(self, range).await?;
+
+        slots
+            .into_iter()
             .map(|slot_num| async move {
-                let slot = self.provider().get_specified_slot(slot_num.into()).await?;
+                // fetch the metadata
+                let (header, events) = tokio::try_join!(
+                    self.provider().get_header_for_slot(slot_num.into()),
+                    self.provider()
+                        .get_events_for_slot(slot_num.into(), Self::EVENT_KEY)
+                )?;
+
                 ChainResult::Ok(stream::iter(
-                    slot.batches
+                    events
                         .into_iter()
-                        .flat_map(|batch| batch.txs)
-                        .map(move |tx| self.process_tx(&tx, slot.number, slot.hash)),
+                        // just in case as there is only a prefix check in the rollup
+                        .filter(|ev| ev.key == Self::EVENT_KEY)
+                        .enumerate()
+                        // TODO the tx_number is not consistent with the one from process_tx
+                        .map(move |(tx_num, ev)| {
+                            self.process_event(tx_num as u64, &ev, slot_num as u64, header.hash)
+                        }),
                 ))
             })
             .collect::<FuturesOrdered<_>>()
             .try_flatten()
             .try_collect::<Vec<_>>()
-            .await?
-            .concat();
-
-        Ok(logs)
+            .await
     }
 
     async fn get_finalized_block_number(&self) -> ChainResult<u32> {
@@ -97,14 +108,15 @@ where
         tx.events
             .iter()
             .filter(|ev| ev.key == Self::EVENT_KEY)
-            .map(|ev| self.process_event(tx, ev, slot_num, slot_hash))
+            // TODO the tx_number is not consistent with the one we generate above
+            .map(|ev| self.process_event(tx.number, ev, slot_num, slot_hash))
             .collect()
     }
 
     // Helper function to process a single event
     fn process_event(
         &self,
-        tx: &Tx,
+        tx_num: u64,
         event: &TxEvent,
         slot_num: u64,
         slot_hash: H256,
@@ -116,15 +128,80 @@ where
             address: H256::default(),
             block_number: slot_num,
             block_hash: slot_hash,
-            transaction_id: tx.hash.into(),
+            transaction_id: event.tx_hash.into(),
+            transaction_index: tx_num,
             // NOTE: this diverges from the Ethereum behavior, as for sovereign, those numbers are
             // global, and for Ethereum, they are block local. However, deducing block-local numbers
             // for transactions fetched by hash would require pulling the whole slot data, which means
             // a lot of overhead
-            transaction_index: tx.number,
             log_index: event.number.into(),
         };
 
         Ok((decoded_event.into(), meta))
     }
+}
+
+async fn range_to_slots<T>(
+    indexer: &(impl SovIndexer<T> + ?Sized),
+    range: RangeInclusive<u32>,
+) -> ChainResult<Vec<u32>>
+where
+    T: Into<Indexed<T>> + Debug + Clone + Send,
+{
+    let mut res = vec![];
+
+    let left = *range.start();
+    let mut right = *range.end();
+
+    // check the boundaries first - the ranges are overlapping
+    // between different calls so no need to subtract one.
+    if let (Some(start), Some(mut end)) = tokio::try_join!(
+        indexer.latest_sequence(Some(left as u64)),
+        indexer.latest_sequence(Some(right as u64)),
+    )? {
+        while start < end {
+            // use binary search to find the slot of the last entry
+            let Some((slot_num, next_count)) = binary_search(indexer, left, right, end).await?
+            else {
+                break;
+            };
+            right = slot_num;
+            end = next_count;
+            res.push(slot_num);
+        }
+    } else {
+        res.extend(range);
+    }
+    Ok(res)
+}
+
+/// Search in the given range for the lowest slot with the given
+/// tree-count.
+///
+/// It returns the slot and the count just before this slot to
+/// handle multiple events in a slot.
+async fn binary_search<T>(
+    indexer: &(impl SovIndexer<T> + ?Sized),
+    mut left: u32,
+    mut right: u32,
+    tree_count: u32,
+) -> ChainResult<Option<(u32, u32)>>
+where
+    T: Into<Indexed<T>> + Debug + Clone + Send,
+{
+    let mut left_cnt = 0;
+    while left < right {
+        let mid = left + (right - left) / 2;
+        let Some(cnt) = indexer.latest_sequence(Some(mid as u64)).await? else {
+            return Ok(None);
+        };
+
+        if cnt < tree_count {
+            left = mid + 1;
+            left_cnt = left_cnt.max(cnt);
+        } else {
+            right = mid;
+        }
+    }
+    Ok(Some((left, left_cnt)))
 }

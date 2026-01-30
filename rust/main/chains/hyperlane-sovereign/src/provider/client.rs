@@ -116,6 +116,7 @@ impl SovereignClient {
             .join(query)
             .map_err(|e| RestClientError::Other(format!("Failed to construct url: {e}")))?;
 
+        tracing::info!("http GET {url}");
         http_get(&self.client, url).await
     }
 

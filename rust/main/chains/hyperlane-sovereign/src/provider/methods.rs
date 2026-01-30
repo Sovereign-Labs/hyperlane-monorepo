@@ -12,7 +12,7 @@ use serde::Deserialize;
 use serde_json::json;
 
 use super::client::SovereignClient;
-use crate::types::{Batch, Slot, Tx, TxResult};
+use crate::types::{Batch, Slot, SlotHeader, Tx, TxEvent, TxResult};
 use crate::Crypto;
 
 impl SovereignClient {
@@ -21,6 +21,19 @@ impl SovereignClient {
         let query = format!("/ledger/batches/{batch}?children=1");
 
         Ok(self.http_get::<Batch>(&query).await?)
+    }
+
+    /// Get the slot by number
+    pub async fn get_events_for_slot(&self, slot: u64, prefix: &str) -> ChainResult<Vec<TxEvent>> {
+        let query = format!("/ledger/slots/{slot}/events?prefix={prefix}");
+
+        Ok(self.http_get::<Vec<TxEvent>>(&query).await?)
+    }
+
+    /// Get the slot without the children.
+    pub async fn get_header_for_slot(&self, slot: u64) -> ChainResult<SlotHeader> {
+        let query = format!("/ledger/slots/{slot}?children=0");
+        Ok(self.http_get(&query).await?)
     }
 
     /// Get the slot by number
@@ -70,6 +83,21 @@ impl SovereignClient {
         };
 
         Ok(self.http_get::<Data>(query).await?.nonce)
+    }
+
+    /// Get the count of delivered messages in Mailbox
+    pub async fn get_deliveries(&self, at_height: Option<u64>) -> ChainResult<u32> {
+        #[derive(Clone, Debug, Deserialize)]
+        struct Data {
+            value: Option<u32>,
+        }
+
+        let query = match at_height {
+            None => "/modules/mailbox/state/deliveries-count",
+            Some(slot) => &format!("/modules/mailbox/state/deliveries-count?slot_number={slot}"),
+        };
+
+        Ok(self.http_get::<Data>(query).await?.value.unwrap_or_default())
     }
 
     /// Check if message with given id was delivered
