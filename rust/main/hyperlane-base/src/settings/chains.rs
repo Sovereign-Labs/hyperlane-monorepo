@@ -212,6 +212,20 @@ impl ChainConnectionConf {
             _ => None,
         }
     }
+
+    /// Get the native token decimals for this chain.
+    /// For chains with explicit native token config (Sovereign, Sealevel, Cosmos), returns the configured value.
+    /// For other chains, returns the protocol default.
+    pub fn native_token_decimals(&self) -> u32 {
+        use hyperlane_core::metrics::agent::decimals_by_protocol;
+        match self {
+            Self::Sovereign(conf) => conf.native_token.decimals,
+            Self::Sealevel(conf) => conf.native_token.decimals,
+            Self::Cosmos(conf) => conf.get_native_token().decimals,
+            Self::CosmosNative(conf) => conf.get_native_token().decimals,
+            _ => decimals_by_protocol(self.protocol()) as u32,
+        }
+    }
 }
 
 /// Addresses for mailbox chain contracts
@@ -1339,6 +1353,7 @@ impl ChainConf {
             address: chain_signer_address,
             domain: self.domain.clone(),
             name: agent_name,
+            native_token_decimals: self.connection.native_token_decimals(),
         })
     }
 
