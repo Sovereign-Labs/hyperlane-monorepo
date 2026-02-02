@@ -1,0 +1,126 @@
+name: Deploy Kubernetes
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: "Git ref to deploy"
+        required: true
+        type: string
+      deploy_env:
+        description: "Deployment environment"
+        required: true
+        type: string
+      image_tag:
+        description: "Docker image tag"
+        required: true
+        type: string
+      aws_region:
+        required: true
+        type: string
+      ecr_registry:
+        required: true
+        type: string
+      aws_ecr_role_arn:
+        required: true
+        type: string
+      aws_deploy_role_arn:
+        required: true
+        type: string
+      eks_cluster_name:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    name: Deploy to ${{ inputs.deploy_env }}
+    runs-on:
+      - nscloud-ubuntu-22.04-arm64-16x32-with-cache
+      - nscloud-cache-tag-hyperlane-build
+      - nscloud-cache-size-100gb
+    env:
+      AWS_REGION: ${{ inputs.aws_region }}
+      ECR_REGISTRY: ${{ inputs.ecr_registry }}
+      IMAGE_TAG: ${{ inputs.image_tag }}
+      DEPLOY_ENV: ${{ inputs.deploy_env }}
+      EKS_CLUSTER_NAME: ${{ inputs.eks_cluster_name }}
+      AWS_ECR_ROLE_ARN: ${{ inputs.aws_ecr_role_arn }}
+      AWS_DEPLOY_ROLE_ARN: ${{ inputs.aws_deploy_role_arn }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Configure AWS credentials (management)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ECR_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Assume deploy role
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-chaining: true
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --name "${EKS_CLUSTER_NAME}" --region "${AWS_REGION}"
+
+      - name: Rollout
+        run: |
+          set -euo pipefail
+          if [[ "${IMAGE_TAG}" =~ ^latest($|-) ]]; then
+            echo "Refusing to deploy latest-tag alias: ${IMAGE_TAG}" >&2
+            exit 1
+          fi
+          shopt -s nullglob
+          bin_dirs=(bins/*)
+          if [ ${#bin_dirs[@]} -eq 0 ]; then
+            echo "No bins found under ./bins" >&2
+            exit 1
+          fi
+          for bin_dir in "${bin_dirs[@]}"; do
+            [ -f "$bin_dir/kubernetes/overlays/${DEPLOY_ENV}/kustomization.yaml" ] || continue
+            bin_name=$(basename "$bin_dir")
+            unset ECR_REPOSITORY K8S_DEPLOYMENT K8S_NAMESPACE K8S_CONTAINER
+            if [ -f "$bin_dir/deploy.env" ]; then
+              set -a
+              source "$bin_dir/deploy.env"
+              set +a
+            fi
+            overlay="${bin_dir}/kubernetes/overlays/${DEPLOY_ENV}"
+            if [ ! -d "$overlay" ]; then
+              echo "Missing overlay for ${bin_name} at ${overlay}" >&2
+              exit 1
+            fi
+            manifest="$(mktemp)"
+            kubectl kustomize "$overlay" > "$manifest"
+            if ! grep -q ':__TAG__' "$manifest"; then
+              echo "Missing image tag placeholder in ${overlay}" >&2
+              exit 1
+            fi
+            sed -i "s/:__TAG__/:${IMAGE_TAG}/g" "$manifest"
+            kubectl apply -f "$manifest"
+
+            namespace="${K8S_NAMESPACE:-applications}"
+            rollout_resources=$(kubectl apply --dry-run=client -o name -f "$manifest" | grep -E '^(deployment|statefulset|daemonset)(\\.|/)' || true)
+            if [ -n "$rollout_resources" ]; then
+              for res in $rollout_resources; do
+                kubectl rollout status "$res" -n "$namespace"
+              done
+            else
+              deployment="${K8S_DEPLOYMENT:-${bin_name}-rust}"
+              kubectl rollout status deployment/"${deployment}" -n "$namespace"
+            fi
+
+            rm -f "$manifest"
+          done

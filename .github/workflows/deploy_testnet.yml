@@ -1,0 +1,89 @@
+name: Release Testnet Deploy
+
+on:
+  push:
+    branches: [release-*]
+  workflow_dispatch:
+    inputs:
+      release_branch:
+        description: "Release branch to deploy (release-<num>)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  meta:
+    name: Resolve Testnet Metadata
+    runs-on: ubuntu-latest
+    if: >-
+      ${{
+        vars.TESTNET_RELEASE_BRANCH != '' &&
+        (
+          (github.event_name == 'push' && github.ref_name == vars.TESTNET_RELEASE_BRANCH) ||
+          (github.event_name == 'workflow_dispatch' && inputs.release_branch == vars.TESTNET_RELEASE_BRANCH)
+        )
+      }}
+    outputs:
+      release_branch: ${{ steps.branch.outputs.release_branch }}
+      release_num: ${{ steps.branch.outputs.release_num }}
+      image_tag: ${{ steps.tag.outputs.image_tag }}
+      commit_sha: ${{ steps.branch.outputs.commit_sha }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.release_branch || github.ref_name }}
+          fetch-depth: 0
+
+      - name: Resolve release branch
+        id: branch
+        run: |
+          release_branch="${{ github.event_name == 'workflow_dispatch' && inputs.release_branch || github.ref_name }}"
+          if [[ ! "$release_branch" =~ ^release-([0-9]+)$ ]]; then
+            echo "Invalid release branch: $release_branch" >&2
+            exit 1
+          fi
+          release_num="${BASH_REMATCH[1]}"
+          commit_sha=$(git rev-parse HEAD)
+          echo "release_branch=$release_branch" >> "$GITHUB_OUTPUT"
+          echo "release_num=$release_num" >> "$GITHUB_OUTPUT"
+          echo "commit_sha=$commit_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Compute testnet image tag
+        id: tag
+        uses: zetamarkets/release-actions/compute-image-tag@a6d5d3185fe2d19fa13047463722c245c7bce4ff
+        with:
+          template: 'release-{release_num}-{short_sha}-testnet'
+          latest_template: 'latest-testnet'
+          release_num: ${{ steps.branch.outputs.release_num }}
+
+  build_push:
+    name: Build and Push Images
+    needs: meta
+    uses: ./.github/workflows/_build_and_push.yml
+    with:
+      ref: ${{ needs.meta.outputs.commit_sha }}
+      image_tag: ${{ needs.meta.outputs.image_tag }}
+      latest_tag: latest-testnet
+      aws_region: ap-northeast-1
+      ecr_registry: 840153641671.dkr.ecr.ap-northeast-1.amazonaws.com
+      aws_ecr_role_arn: arn:aws:iam::840153641671:role/monorepo-gha
+    secrets: inherit
+
+  deploy:
+    name: Deploy Testnet
+    needs: [meta, build_push]
+    uses: ./.github/workflows/_deploy_k8s.yml
+    with:
+      ref: ${{ needs.meta.outputs.commit_sha }}
+      deploy_env: testnet
+      image_tag: ${{ needs.meta.outputs.image_tag }}
+      aws_region: ap-northeast-1
+      ecr_registry: 840153641671.dkr.ecr.ap-northeast-1.amazonaws.com
+      aws_ecr_role_arn: arn:aws:iam::840153641671:role/monorepo-gha
+      aws_deploy_role_arn: arn:aws:iam::731781083829:role/monorepo-gha-role
+      eks_cluster_name: cluster
+    secrets: inherit

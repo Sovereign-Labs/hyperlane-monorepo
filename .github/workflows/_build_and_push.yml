@@ -1,0 +1,142 @@
+name: Build and Push Images
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: "Git ref to build"
+        required: true
+        type: string
+      image_tag:
+        description: "Docker image tag"
+        required: true
+        type: string
+      latest_tag:
+        description: "Latest tag alias"
+        required: true
+        type: string
+      aws_region:
+        required: true
+        type: string
+      ecr_registry:
+        required: true
+        type: string
+      aws_ecr_role_arn:
+        required: true
+        type: string
+    secrets:
+      BULLET_DEPLOY_KEY:
+        required: true
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  CARGO_NET_GIT_FETCH_WITH_CLI: true
+
+jobs:
+  build_push:
+    name: Build and Push Images
+    runs-on:
+      - nscloud-ubuntu-22.04-arm64-16x32-with-cache
+      - nscloud-cache-tag-hyperlane-build
+      - nscloud-cache-size-100gb
+    env:
+      AWS_REGION: ${{ inputs.aws_region }}
+      ECR_REGISTRY: ${{ inputs.ecr_registry }}
+      IMAGE_TAG: ${{ inputs.image_tag }}
+      LATEST_TAG: ${{ inputs.latest_tag }}
+      AWS_ECR_ROLE_ARN: ${{ inputs.aws_ecr_role_arn }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ vars.BULLET_DEPLOY_APP_ID }}
+          private-key: ${{ secrets.BULLET_DEPLOY_KEY }}
+          owner: ${{ github.repository_owner }}
+
+      - name: Replace SSH URLs with HTTPS in Cargo manifests
+        run: |
+          set -euo pipefail
+          mapfile -t cargo_files < <(find . -name 'Cargo.toml' -o -name 'Cargo.lock')
+          if [ ${#cargo_files[@]} -eq 0 ]; then
+            echo "No Cargo manifests found; skipping URL rewrite."
+            exit 0
+          fi
+          for file in "${cargo_files[@]}"; do
+            sed -i "s|ssh://git@github.com/|https://x-access-token:${{ steps.app-token.outputs.token }}@github.com/|g" "$file"
+            sed -i "s|git@github.com:|https://x-access-token:${{ steps.app-token.outputs.token }}@github.com/|g" "$file"
+          done
+
+      - name: Configure Git to use App Token
+        env:
+          BULLET_APP_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          # Rewrite SSH URLs to authenticated HTTPS (for private deps)
+          git config --global --add url."https://x-access-token:${BULLET_APP_TOKEN}@github.com/".insteadOf "ssh://git@github.com/"
+          git config --global --add url."https://x-access-token:${BULLET_APP_TOKEN}@github.com/".insteadOf "git@github.com:"
+          # Rewrite HTTPS URLs to include token (for git push since persist-credentials: false)
+          git config --global --add url."https://x-access-token:${BULLET_APP_TOKEN}@github.com/".insteadOf "https://github.com/"
+
+      - name: Patch bullet-bs58 to HTTPS for CI
+        run: |
+          mkdir -p ~/.cargo
+          cat <<'CONFIG' >> ~/.cargo/config.toml
+          [patch."ssh://git@github.com/zetamarkets/bullet-bs58"]
+          bullet-bs58 = { git = "https://github.com/zetamarkets/bullet-bs58", rev = "ded255cdfb39992c7dc04b6cdd2b2ab7eec75595" }
+          CONFIG
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ECR_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push images
+        env:
+          BULLET_APP_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          bin_dirs=(bins/*)
+          if [ ${#bin_dirs[@]} -eq 0 ]; then
+            echo "No bins found under ./bins" >&2
+            exit 1
+          fi
+          for bin_dir in "${bin_dirs[@]}"; do
+            [ -f "$bin_dir/Dockerfile" ] || continue
+            bin_name=$(basename "$bin_dir")
+            unset ECR_REPOSITORY K8S_DEPLOYMENT K8S_NAMESPACE
+            if [ -f "$bin_dir/deploy.env" ]; then
+              set -a
+              source "$bin_dir/deploy.env"
+              set +a
+            fi
+            ecr_repo="${ECR_REPOSITORY:-$bin_name}"
+            image="${ECR_REGISTRY}/${ecr_repo}"
+            dockerfile="${bin_dir}/Dockerfile"
+            if [ ! -f "$dockerfile" ]; then
+              echo "Missing Dockerfile for ${bin_name} at ${dockerfile}" >&2
+              exit 1
+            fi
+            docker buildx build \
+              --platform linux/arm64 \
+              --file "$dockerfile" \
+              --tag "${image}:${IMAGE_TAG}" \
+              --tag "${image}:${LATEST_TAG}" \
+              --secret id=bullet_app_token,env=BULLET_APP_TOKEN \
+              --push \
+              .
+          done
