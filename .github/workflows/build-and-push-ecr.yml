@@ -1,0 +1,85 @@
+name: Build and Push Agent to ECR
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref to build (branch, tag, or SHA)"
+        required: false
+        default: "master"
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: build-push-ecr-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  AWS_REGION: ap-northeast-1
+  ECR_REGISTRY: 840153641671.dkr.ecr.ap-northeast-1.amazonaws.com
+  ECR_REPOSITORY: hyperlane
+  AWS_ECR_ROLE_ARN: arn:aws:iam::840153641671:role/monorepo-gha
+
+jobs:
+  meta:
+    name: Resolve Build Metadata
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.tag.outputs.image_tag }}
+      latest_tag: ${{ steps.tag.outputs.latest_tag }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || github.sha }}
+          fetch-depth: 0
+
+      - name: Compute image tag
+        id: tag
+        run: |
+          DATE=$(date -u +'%Y%m%d-%H%M%S')
+          SHORT_SHA=$(echo "${{ github.event.inputs.ref || github.sha }}" | cut -c1-7)
+          echo "image_tag=${DATE}-${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "latest_tag=latest" >> "$GITHUB_OUTPUT"
+
+  build_push:
+    name: Build and Push Image
+    needs: meta
+    runs-on:
+      - nscloud-ubuntu-22.04-arm64-16x32-with-cache
+      - nscloud-cache-tag-hyperlane-build
+      - nscloud-cache-size-100gb
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || github.sha }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ECR_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./rust/Dockerfile
+          push: true
+          platforms: linux/arm64
+          tags: |
+            ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ needs.meta.outputs.image_tag }}
+            ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ needs.meta.outputs.latest_tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
