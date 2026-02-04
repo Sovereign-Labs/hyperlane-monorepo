@@ -143,7 +143,8 @@ pub async fn connect_chains(
 
 // Convert the 20 byte eth address to address padded to 32 bytes for hyperlane.
 pub fn address_to_padded(address: &str) -> String {
-    format!("{}{}", "0".repeat(24), address).to_string()
+    let addr = address.strip_prefix("0x").unwrap_or(address);
+    format!("0x{}{}", "0".repeat(24), addr)
 }
 
 pub async fn dispatch_transfers(
