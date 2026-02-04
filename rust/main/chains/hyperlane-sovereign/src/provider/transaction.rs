@@ -77,7 +77,7 @@ impl SovereignClient {
             let chain_hash = self
                 .schema
                 .cached_chain_hash()
-                .expect("Chain hash is precomputed on client's creation");
+                .ok_or_else(|| custom_err!("Chain hash not precomputed"))?;
             utx_bytes.extend_from_slice(&chain_hash);
         }
 
