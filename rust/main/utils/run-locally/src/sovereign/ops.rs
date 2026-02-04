@@ -112,8 +112,12 @@ pub async fn connect_chains(
     validator_address: &str,
 ) -> Vec<ChainRouter> {
     let mut chains = conf.chains.values();
-    let chain1 = chains.next().unwrap();
-    let chain2 = chains.next().unwrap();
+    let chain1 = chains
+        .next()
+        .expect("connect_chains requires at least two chains");
+    let chain2 = chains
+        .next()
+        .expect("connect_chains requires at least two chains");
 
     let route1 = create_warp_route(chain1, None, relayer_address, validator_address).await;
     let route2 = create_warp_route(
@@ -164,7 +168,7 @@ pub async fn dispatch_transfers(
             let router = routers
                 .iter()
                 .find(|r| r.domain_id == target.domain_id)
-                .unwrap();
+                .expect("missing router for target domain");
             let call = json!({
                 "warp": {
                     "transfer_remote": {

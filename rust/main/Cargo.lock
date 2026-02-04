@@ -6476,7 +6476,7 @@ dependencies = [
  "reqwest-utils",
  "serde",
  "serde_json",
- "thiserror 1.0.63",
+ "thiserror 1.0.69",
  "time",
  "tokio",
  "tonic 0.12.3",
@@ -12658,7 +12658,7 @@ dependencies = [
 [[package]]
 name = "sov-universal-wallet"
 version = "0.1.0"
-source = "git+https://github.com/Sovereign-Labs/sovereign-sdk.git?branch=nightly#481c472c6c98fcad8e983f12ae9786b55534fe83"
+source = "git+https://github.com/Sovereign-Labs/sovereign-sdk.git?rev=481c472c6c98fcad8e983f12ae9786b55534fe83#481c472c6c98fcad8e983f12ae9786b55534fe83"
 dependencies = [
  "arrayvec",
  "bech32 0.11.0",

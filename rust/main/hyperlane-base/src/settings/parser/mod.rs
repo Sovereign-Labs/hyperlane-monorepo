@@ -490,6 +490,12 @@ fn parse_signer(signer: ValueParser) -> ConfigResult<SignerConf> {
             } else {
                 Some(parsed_hrp.to_owned())
             };
+            if account_type == "sovereign" && hrp.is_none() {
+                err.push(
+                    (&signer.cwp).add("hrp"),
+                    eyre!("HRP must be supplied for 'sovereign' accountType"),
+                );
+            }
             err.into_result(SignerConf::SovereignKey {
                 key,
                 account_type: account_type.to_string(),

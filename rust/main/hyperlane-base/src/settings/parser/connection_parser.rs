@@ -732,7 +732,8 @@ pub fn build_connection_conf(
 pub fn is_protocol_supported(protocol: HyperlaneDomainProtocol) -> bool {
     use HyperlaneDomainProtocol::*;
     match protocol {
-        Ethereum | Fuel | Sealevel | Cosmos | CosmosNative | Starknet | Radix | Sovereign | Tron => true,
+        Ethereum | Fuel | Sealevel | Cosmos | CosmosNative | Starknet | Radix | Sovereign
+        | Tron => true,
         // Aleo is feature-gated - only supported when the "aleo" feature is enabled
         Aleo => cfg!(feature = "aleo"),
     }
@@ -772,7 +773,7 @@ fn parse_sovereign_native_token(
 
     let Some(decimals) = decimals else {
         err.push(
-            (&chain.cwp).add("nativeToken").add("decimals"),
+            (&chain.cwp).add("native_token").add("decimals"),
             eyre!("nativeToken.decimals is required for Sovereign chains"),
         );
         return None;

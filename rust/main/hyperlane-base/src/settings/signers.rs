@@ -332,11 +332,12 @@ impl BuildableWithSignerConf for hyperlane_sovereign::Signer {
             hrp,
         } = conf
         {
-            Ok(hyperlane_sovereign::Signer::new(
-                key,
-                account_type,
-                hrp.clone(),
-            )?)
+            let signer = hyperlane_sovereign::Signer::new(key, account_type, hrp.clone())?;
+            // Validate address derivation at build time
+            signer
+                .address()
+                .context("Failed to derive Sovereign signer address")?;
+            Ok(signer)
         } else {
             bail!("{conf:?} key is not supported by Sovereign");
         }

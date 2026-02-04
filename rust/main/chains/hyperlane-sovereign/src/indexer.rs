@@ -50,7 +50,9 @@ where
 
     async fn get_finalized_block_number(&self) -> ChainResult<u32> {
         let latest_slot = self.provider().get_finalized_slot().await?;
-        Ok(latest_slot.try_into().expect("Slot number overflowed u32"))
+        Ok(latest_slot
+            .try_into()
+            .map_err(|_| custom_err!("Slot number overflowed u32"))?)
     }
 
     /// Get the transaction by hash. Sovereign Tx hashes are represented as H256,
