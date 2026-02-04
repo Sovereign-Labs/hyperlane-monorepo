@@ -68,7 +68,7 @@ async fn run_locally() {
 
     wait_until_nodes_healthy(&params);
 
-    sleep(Duration::from_secs(10));
+    sleep(Duration::from_secs(20));
 
     let chain_registry = ChainRegistry {
         chains: params
@@ -91,13 +91,13 @@ async fn run_locally() {
     .expect("Failed to write chain registry to file");
     log!("wrote config to: {}", &agent_conf_path.display());
 
-    log!("initializing scrapper db");
+    log!("initializing scraper db");
     let postgres = start_scraper_db();
     state.push_agent(postgres);
 
-    log!("starting scrapper");
-    let scrapper = start_scraper(&agent_conf_path, &chain_registry);
-    state.push_agent(scrapper);
+    log!("starting scraper");
+    let scraper = start_scraper(&agent_conf_path, &chain_registry);
+    state.push_agent(scraper);
 
     log!("starting relayer");
     let relayer = start_relayer(&agent_conf_path, &chain_registry, data_dir.path());

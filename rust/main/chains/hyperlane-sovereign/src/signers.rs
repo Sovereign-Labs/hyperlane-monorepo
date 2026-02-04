@@ -6,9 +6,10 @@
 //! This means that there is no way to tell how messages should be signed, in what format
 //! should the public key be provided, or how to derive address from the public key.
 //!
-//! Currently there are two implementations in use:
+//! Currently there are three implementations in use:
 //! - ed25519 based
 //! - ethereum based
+//! - sovereign based
 //!
 //! and the only way to check which one rollup uses is to try them all and see which one
 //! achieves a successful response from the rollup.

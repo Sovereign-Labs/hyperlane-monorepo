@@ -231,8 +231,10 @@ impl ChainSpecificMetricsUpdater {
         if self.chain_metrics.gas_price.is_some() {
             let decimals = self.conf.native_token_decimals;
             let decimals_scale = 10f64.powf(decimals.into());
-            let gas = u256_as_scaled_f64_with_decimals(chain_metrics.min_gas_price.unwrap_or_default(), decimals)
-                * decimals_scale;
+            let gas = u256_as_scaled_f64_with_decimals(
+                chain_metrics.min_gas_price.unwrap_or_default(),
+                decimals,
+            ) * decimals_scale;
             trace!(
                 chain,
                 gas = format!("{gas:.2}"),

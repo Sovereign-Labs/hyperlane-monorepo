@@ -21,6 +21,9 @@ pub struct Signer {
 impl Signer {
     /// Create a new Sovereign ed25519 signer.
     pub fn new(private_key: &H256, hrp: String) -> ChainResult<Self> {
+        Hrp::parse(&hrp).map_err(|e| {
+            ChainCommunicationError::CustomError(format!("Invalid HRP '{hrp}': {e}"))
+        })?;
         let private_key = private_key.as_fixed_bytes().into();
         Ok(Signer {
             key: private_key,
@@ -42,7 +45,8 @@ impl Crypto for Signer {
         // Sov address uses first 28 bytes of the public key
         // <https://github.com/Sovereign-Labs/sovereign-sdk-wip/blob/fdad6aef490656ce4ad6c93f486569acb71d11eb/crates/module-system/sov-modules-api/src/common/address.rs#L411-L415>
         // <https://github.com/Sovereign-Labs/sovereign-sdk-wip/blob/fdad6aef490656ce4ad6c93f486569acb71d11eb/crates/module-system/sov-modules-api/src/common/address.rs#L365-L369>
-        let hrp = Hrp::parse(&self.hrp).expect("valid hrp");
+        // SAFETY: HRP was validated in constructor
+        let hrp = Hrp::parse(&self.hrp).unwrap();
         let address = bech32::encode::<Bech32m>(
             hrp,
             &self.key.verifying_key().as_bytes()[..SOV_ADDRESS_LENGTH],

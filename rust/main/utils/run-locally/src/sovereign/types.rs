@@ -1,3 +1,4 @@
+use hyperlane_core::NativeToken;
 use hyperlane_sovereign::{ConnectionConf, Signer, SovereignClient};
 
 use super::node::SovereignParameters;
@@ -15,6 +16,8 @@ pub struct AgentConfigSigner {
     pub typ: String,
     pub key: String,
     pub account_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hrp: Option<String>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
@@ -29,6 +32,7 @@ pub struct ChainConfig {
     pub protocol: String,
     pub rpc_urls: Vec<AgentUrl>,
     pub signer: AgentConfigSigner,
+    pub native_token: NativeToken,
 }
 
 const SOVEREIGN_PROTOCOL: &str = "sovereign";
@@ -51,6 +55,11 @@ impl ChainConfig {
                 typ: "sovereignKey".to_string(),
                 key: key.to_owned(),
                 account_type: "ethereum".to_string(),
+                hrp: None,
+            },
+            native_token: NativeToken {
+                decimals: 18,
+                ..Default::default()
             },
         }
     }
@@ -88,11 +97,16 @@ pub async fn get_or_create_client(conf: &ChainConfig) -> SovereignClient {
         .key
         .parse()
         .expect("failed to parse private key");
-    let signer =
-        Signer::new(&client_key, &conf.signer.account_type, None).expect("failed to create signer");
+    let signer = Signer::new(
+        &client_key,
+        &conf.signer.account_type,
+        conf.signer.hrp.clone(),
+    )
+    .expect("failed to create signer");
     let connection_conf = ConnectionConf {
         url: conf.rpc_urls[0].http.parse().unwrap(),
         op_submission_config: Default::default(),
+        native_token: conf.native_token.clone(),
     };
     let client = SovereignClient::new(&connection_conf, signer)
         .await
