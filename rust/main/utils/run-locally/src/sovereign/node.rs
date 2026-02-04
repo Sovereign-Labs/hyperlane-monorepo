@@ -171,7 +171,11 @@ pub fn setup_sovereign_environment() -> (PathBuf, Vec<(AgentHandles, SovereignPa
 
     let rollup_path = env::var(SOVEREIGN_ROLLUP_PATH_ENV)
         .map(PathBuf::from)
-        .unwrap_or_else(|_| tempdir().unwrap().path().to_path_buf());
+        .unwrap_or_else(|_| {
+            tempdir()
+                .expect("Failed to create temp dir for rollup repo")
+                .into_path()
+        });
     let rollup_dir = clone_sovereign_rollup(rollup_path.clone());
 
     log!("Sovereign repository cloned to: {}", rollup_dir.display());
