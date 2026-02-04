@@ -52,6 +52,7 @@ async fn run_locally() {
 
     log!("Running simplified Sovereign node startup test...");
 
+    let data_dir = tempdir().unwrap();
     let mut state = State::default();
 
     log!("Setting up Sovereign rollup environment...");
@@ -81,7 +82,6 @@ async fn run_locally() {
     set_relayer_igp_configs(&chain_registry, RELAYER_ADDRESS).await;
     let routers = connect_chains(&chain_registry, RELAYER_ADDRESS, VALIDATOR_ADDRESS).await;
 
-    let data_dir = tempdir().unwrap();
     let agent_conf_path = concat_path(data_dir.path(), "config.json");
     fs::write(
         &agent_conf_path,
