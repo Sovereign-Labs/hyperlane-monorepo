@@ -1,0 +1,32 @@
+{
+  "chains": {
+    "sealevel": {
+      "name": "sealevel",
+      "domainId": 1337,
+      "protocol": "sealevel",
+      "isTestnet": true,
+      "rpcUrls": [{"http": "http://3.226.5.188:8899"}],
+      "mailbox": "GodWgCpbG683Zi8ii5qtXnfmGJGVWGWZ3hzzHavoAYag",
+      "merkleTreeHook": "GodWgCpbG683Zi8ii5qtXnfmGJGVWGWZ3hzzHavoAYag",
+      "interchainGasPaymaster": "DC2ZM1eRB448rdT7RLJEhgy3MdKYtRNeJggtn6zet7sn",
+      "validatorAnnounce": "6FX5tLg5MLs2FXeFygmhr8vGP9Fx3peBiF6wh5HsiYY4",
+      "blocks": {"confirmations": 1, "estimateBlockTime": 0.4, "reorgPeriod": 0},
+      "index": {"from": 0, "mode": "sequence"}
+    },
+    "sovereign": {
+      "name": "sovereign",
+      "domainId": 5555,
+      "protocol": "sovereign",
+      "isTestnet": true,
+      "rpcUrls": [{"http": "http://3.226.5.188:12346"}],
+      "mailbox": "0x0000000000000000000000000000000000000000",
+      "merkleTreeHook": "0x0000000000000000000000000000000000000000",
+      "interchainGasPaymaster": "0x0000000000000000000000000000000000000000",
+      "validatorAnnounce": "0x0000000000000000000000000000000000000000",
+      "signer": {"type": "sovereignKey", "account_type": "solana"},
+      "nativeToken": {"name": "Sovereign Native Token", "symbol": "SNT", "decimals": 9},
+      "index": {"from": 0, "chunk": 1999},
+      "finalityBlocks": 1
+    }
+  }
+}
