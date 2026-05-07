@@ -40,7 +40,8 @@ impl SovereignClient {
                 "max_fee": 100_000_000,
                 "gas_limit": Value::Null,
                 "chain_id": self.chain_id
-            }
+            },
+            "address_override": Value::Null,
         })
     }
 
@@ -64,9 +65,10 @@ impl SovereignClient {
             .schema
             .rollup_expected_index(RollupRoots::UnsignedTransaction)
             .map_err(|e| custom_err!("Failed searching unsigned transaction schema: {e}"))?;
+        let utx_versioned_json = json!({ "V0": &utx_json });
         let mut utx_bytes = self
             .schema
-            .json_to_borsh(utx_index, &utx_json.to_string())
+            .json_to_borsh(utx_index, &utx_versioned_json.to_string())
             .map_err(|e| custom_err!("Failed serializing unsigned transaction: {e}"))?;
 
         // test runtime in sovereign sdk hardcodes chain hash to this value
@@ -77,7 +79,7 @@ impl SovereignClient {
             let chain_hash = self
                 .schema
                 .chain_hash()
-                .map_err(|e| custom_err!("Failed to compute rollup chain hash: {e}"))?;
+                .map_err(|e| custom_err!("Failed to get chain hash: {e}"))?;
             utx_bytes.extend_from_slice(&chain_hash);
         }
 
