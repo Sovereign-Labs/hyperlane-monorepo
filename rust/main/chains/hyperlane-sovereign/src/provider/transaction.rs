@@ -62,25 +62,31 @@ impl SovereignClient {
         tracing::trace!(?utx_json, "Signing transaction");
         let utx_index = self
             .schema
-            .rollup_expected_index(RollupRoots::UnsignedTransaction)
+            .rollup_expected_index(RollupRoots::TransactionSigningPayload)
             .map_err(|e| custom_err!("Failed searching unsigned transaction schema: {e}"))?;
-        let utx_wrapped = json!({"V0": &utx_json});
-        let mut utx_bytes = self
+        // Since the UnsignedTransaction/TransactionSigningPayload split, the signing payload
+        // carries the chain hash as its final field. Include it in the JSON we serialize for
+        // signing (it serializes last, matching the previous manual byte append). The submitted
+        // transaction itself does not carry the chain hash.
+        let chain_hash: [u8; 32] = if env::var("SOV_TEST_UTILS_FIXED_CHAIN_HASH").is_ok() {
+            // test runtime in sovereign sdk hardcodes chain hash to this value
+            // https://github.com/Sovereign-Labs/sovereign-sdk-wip/blob/2fcd88e0a4b57183058f3ec9ebf8925998677d0a/crates/module-system/sov-test-utils/src/runtime/macros.rs#L103
+            [11; 32]
+        } else {
+            self.schema
+                .chain_hash()
+                .map_err(|e| custom_err!("Failed to compute chain hash: {e}"))?
+        };
+
+        let mut signing_payload = utx_json.clone();
+        if let Some(obj) = signing_payload.as_object_mut() {
+            obj.insert("chain_hash".to_string(), serde_json::to_value(chain_hash)?);
+        }
+        let utx_wrapped = json!({"V0": signing_payload});
+        let utx_bytes = self
             .schema
             .json_to_borsh(utx_index, &utx_wrapped.to_string())
             .map_err(|e| custom_err!("Failed serializing unsigned transaction: {e}"))?;
-
-        // test runtime in sovereign sdk hardcodes chain hash to this value
-        // https://github.com/Sovereign-Labs/sovereign-sdk-wip/blob/2fcd88e0a4b57183058f3ec9ebf8925998677d0a/crates/module-system/sov-test-utils/src/runtime/macros.rs#L103
-        if env::var("SOV_TEST_UTILS_FIXED_CHAIN_HASH").is_ok() {
-            utx_bytes.extend_from_slice(&[11; 32]);
-        } else {
-            let chain_hash = self
-                .schema
-                .cached_chain_hash()
-                .ok_or_else(|| custom_err!("Chain hash not precomputed"))?;
-            utx_bytes.extend_from_slice(&chain_hash);
-        }
 
         let signature = signer.sign(&utx_bytes)?;
 
