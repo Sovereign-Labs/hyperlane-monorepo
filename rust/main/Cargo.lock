@@ -12928,9 +12928,8 @@ dependencies = [
 
 [[package]]
 name = "sov-universal-wallet"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "67050a222fef00b4333966f93f44d543498181c019e6a6d5cf6f187a774d7b06"
+version = "0.5.0"
+source = "git+https://github.com/Sovereign-Labs/sovereign-sdk.git?rev=cc4758ae9d1778414eeb9fdece6ee035d49e1d0b#cc4758ae9d1778414eeb9fdece6ee035d49e1d0b"
 dependencies = [
  "alloy-primitives",
  "arrayvec",
